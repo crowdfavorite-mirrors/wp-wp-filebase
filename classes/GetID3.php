@@ -12,9 +12,14 @@ class WPFB_GetID3 {
 	//));		
 	}
 	
-	static function AnalyzeFile($filename)
+	static function AnalyzeFile($file)
 	{
-		return self::$engine->analyze($filename);
+		$filename = is_string($file) ? $file : $file->GetLocalPath();
+		
+		if(WPFB_Core::GetOpt('disable_id3')) $info = array();
+		else $info =& self::$engine->analyze($filename);
+		
+		return $info;
 	}
 	
 	static function StoreFileInfo($file_id, $info)
@@ -41,7 +46,7 @@ class WPFB_GetID3 {
 	
 	static function UpdateCachedFileInfo($file)
 	{
-		$info = self::AnalyzeFile($file->GetLocalPath());
+		$info =& self::AnalyzeFile($file);
 		self::StoreFileInfo($file->GetId(), $info);
 		return $info;
 	}

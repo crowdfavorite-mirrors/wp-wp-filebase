@@ -1,5 +1,31 @@
 <?php
 class WPFB_AdminGuiCats {
+	
+static function CatRow($cat, $sub_level=0)
+{
+	$cat_id = $cat->cat_id;
+	$parent_cat = $cat->GetParent();
+	$user_roles = $cat->GetUserRoles();
+	$title = esc_attr($cat->cat_name);
+	if($sub_level > 0) $title = str_repeat('-', $sub_level) . " $title";
+	
+	?>
+			<tr id="cat-<?php echo $cat_id; ?>">
+				<th scope="row" class="check-column"><input type="checkbox" name="delete[]" value="<?php echo $cat_id; ?>" /></th>
+				<td class="wpfilebase-admin-list-row-title"><a class="row-title" href="<?php echo esc_attr($cat->GetEditUrl()); ?>" title="&quot;<?php echo $title; ?>&quot; bearbeiten">
+				<?php if(!empty($cat->cat_icon)) { ?><img src="<?php echo $cat->GetIconUrl(); ?>" height="32" /><?php } ?>
+				<span><?php echo $title; ?></span>
+				</a></td>
+				<td><?php echo esc_html($cat->cat_description) ?></td>
+				<td class="num"><?php echo "<a href='".admin_url("admin.php?page=wpfilebase_files&file_category=".$cat->GetId())."'>$cat->cat_num_files</a> / $cat->cat_num_files_total" ?></td>
+				<td><?php echo $parent_cat?('<a href="'.$parent_cat->GetEditUrl().'">'.esc_html($parent_cat->cat_name).'</a>'):'-' ?></td>
+				<td><code><?php echo esc_html($cat->cat_path) ?></code></td>
+				<td><?php echo WPFB_Output::RoleNames($user_roles,true) ?></td>
+				<td class="num"><?php echo $cat->cat_order ?></td>
+			</tr>
+	<?php
+}
+
 static function Display()
 {
 	global $wpdb, $user_ID;
@@ -133,26 +159,15 @@ static function Display()
 			</tr>
 			</thead>
 			<tbody id="the-list" class="list:cat">
+			
 			<?php
 			foreach($cats as $cat_id => &$cat)
 			{
-				$parent_cat = $cat->GetParent();
-				$user_roles = $cat->GetUserRoles();
+				self::CatRow($cat);			
+			}
+			
 			?>
-			<tr id="cat-<?php echo $cat_id; ?>">
-				<th scope="row" class="check-column"><input type="checkbox" name="delete[]" value="<?php echo $cat_id; ?>" /></th>
-				<td class="wpfilebase-admin-list-row-title"><a class="row-title" href="<?php echo $clean_uri; ?>&amp;action=editcat&amp;cat_id=<?php echo $cat_id; ?>" title="&quot;<?php echo esc_attr($cat->cat_name); ?>&quot; bearbeiten">
-				<?php if(!empty($cat->cat_icon)) { ?><img src="<?php echo $cat->GetIconUrl(); ?>" height="32" /><?php } ?>
-				<span><?php echo esc_attr($cat->cat_name); ?></span>
-				</a></td>
-				<td><?php echo esc_html($cat->cat_description) ?></td>
-				<td class="num"><?php echo "<a href='".admin_url("admin.php?page=wpfilebase_files&file_category=".$cat->GetId())."'>$cat->cat_num_files</a> / $cat->cat_num_files_total" ?></td>
-				<td><?php echo $parent_cat?('<a href="'.$parent_cat->GetEditUrl().'">'.esc_html($parent_cat->cat_name).'</a>'):'-' ?></td>
-				<td><code><?php echo esc_html($cat->cat_path) ?></code></td>
-				<td><?php echo WPFB_Output::RoleNames($user_roles,true) ?></td>
-				<td class="num"><?php echo $cat->cat_order ?></td>
-			</tr>
-			<?php } ?>
+			
 			</tbody>
 		</table>
 		<div class="tablenav"><?php if ( $page_links ) { echo "<div class='tablenav-pages'>$page_links</div>"; } ?></div>

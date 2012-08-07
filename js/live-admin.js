@@ -42,7 +42,7 @@ function wpfb_menuDel(menuItem,menu) {
 
 function wpfb_addContextMenu(el, url) {
 	if(typeof(wpfbContextMenu) != 'undefined')
-		el.contextMenu(wpfbContextMenu,{theme:'osx',showTransition:'fadeIn',hideTransition:'fadeOut',file_url:url});
+		el.contextMenu(wpfbContextMenu,{theme:'osx',shadow:false,showTransition:'fadeIn',hideTransition:'fadeOut',file_url:url});
 }
 
 function wpfb_manageAttachments(url,postId)

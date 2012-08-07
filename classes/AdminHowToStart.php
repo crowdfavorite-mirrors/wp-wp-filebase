@@ -21,7 +21,7 @@ jQuery(document).ready(function(){
 	<h3><?php printf(__('How to get started with %s?', WPFB), WPFB_PLUGIN_NAME); ?></h3></div>
 	<div class='widgets-sortables'>
 		<ul>
-			<li><a href="<?php echo esc_attr(admin_url("admin.php?page=wpfilebase_cats#addcat")); ?>"><?php _e('Add a Category',WPFB) ?></a></li>
+			<li><a href="<?php echo esc_attr(admin_url("admin.php?page=wpfilebase_cats#addcat")); ?>"><?php _e('Create a Category',WPFB) ?></a></li>
 			
 			<li><?php _e('Add a file. There are different ways:', WPFB); ?>
 				<ul>
@@ -29,8 +29,8 @@ jQuery(document).ready(function(){
 					<li><?php printf(__('Use FTP: Use your favorite FTP Client to upload any directories/files to <code>%s</code>. Afterwards <a href="%s">sync the filebase</a> to add the newly uploaded files to the database.', WPFB), esc_html(WPFB_Core::GetOpt('upload_path')), esc_attr(admin_url('admin.php?page=wpfilebase_manage&action=sync'))); ?></li>
 				</ul>
 			</li>
-			<li><?php printf(__('Goto <a href="%s">WP-Filebase Settings -> Filebrowser</a> and set the Page ID to get a nice AJAX Tree View of all your files.', WPFB), esc_attr(admin_url('admin.php?page=wpfilebase_sets#file-browser'))); ?></li>
-			<li><?php printf(__('When creating or editing posts/pages, use the Editor Plugin %s to insert single files, file lists and other stuff into your content.', WPFB), '<img src="'.esc_attr(WPFB_PLUGIN_URI).'tinymce/images/btn.gif" style="vertical-align:middle;" />'); ?></li>
+			<li><?php printf(__('Goto <a href="%s">WP-Filebase Settings -> Filebrowser</a> and set the Page ID to get a nice AJAX Tree View of all your files.', WPFB), esc_attr(admin_url('admin.php?page=wpfilebase_sets#'.sanitize_title(__('File Browser',WPFB))))); ?></li>
+			<li><?php printf(__('WP-Filebase adds a new button to the visual editor. When creating or editing posts/pages, use the Editor Plugin %s to insert single files, file lists and other stuff into your content.', WPFB), '<img src="'.esc_attr(WPFB_PLUGIN_URI).'tinymce/images/btn.gif" style="vertical-align:middle;" />'); ?></li>
 			<li><?php printf(__('Take a look at the <a href="%s">Widgets</a>. WP-Filebase adds three widgets for file listing, category listing and user uploads.', WPFB), admin_url('widgets.php')); ?></li>
 			<li><?php printf(__('<a href="%s">Manage the Templates</a> (for advanced users): You can modify any file- or category template to fit your Wordpress theme.', WPFB), esc_attr(admin_url('admin.php?page=wpfilebase_tpls'))); ?></li>
 		</ul>

@@ -386,7 +386,7 @@ function SendFile($file_path, $args=array())
 		header("ETag: \"$etag\"");
 		
 		$if_mod_since = !empty($_SERVER['HTTP_IF_MODIFIED_SINCE']) ? $_SERVER['HTTP_IF_MODIFIED_SINCE'] : false;
-		$if_none_match = !empty($_SERVER['HTTP_IF_NONE_MATCH']) ? trim($etag, $_SERVER['HTTP_IF_NONE_MATCH'], '"') : false;
+		$if_none_match = !empty($_SERVER['HTTP_IF_NONE_MATCH']) ? ($etag == trim($_SERVER['HTTP_IF_NONE_MATCH'], '"')) : false;
 		
 		if($if_mod_since || $if_none_match) {
 			$not_modified = true;

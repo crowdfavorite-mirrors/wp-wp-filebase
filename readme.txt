@@ -3,16 +3,16 @@ Contributors: fabifott
 Donate link: https://www.paypal.com/cgi-bin/webscr?cmd=_donations&business=wpfilebase%40fabi%2eme&item_name=WP-Filebase&no_shipping=0&no_note=1&tax=0&currency_code=USD&lc=US&bn=PP%2dDonationsBF&charset=UTF%2d8
 Tags: filebase, filemanager, file, files, manager, upload, download, downloads, downloadmanager, traffic, widget, filelist, list, thumb, thumbnail, attachment, attachments, category, categories, media, template, ftp, http, mp3, id3
 Requires at least: 3.1
-Tested up to: 3.3.1
-Stable tag: 0.2.9.13
+Tested up to: 3.4.1
+Stable tag: 0.2.9.18
 
-Adds a powerful downloads manager supporting file categories, download counter, widgets, sorted file lists and more to your WordPress blog.
+Adds a powerful download manager supporting file categories, downloads counter, widgets, sorted file lists and more to your WordPress blog.
 
 == Description ==
 
-WP-Filebase is an allround file manager for Wordpress.
-It keeps files structured in categories, offers a template system to create sortable, paginated file lists and can sideload files from other websites.
-The plugin is made for easy management of many files and consistent output using templates.
+WP-Filebase is an all-round file manager for Wordpress.
+It keeps files structured in categories, offers a template system to create sortable, paginated file lists and can sideload files from another web site.
+The Plugin is made for easy management of many files and consistent output using templates.
 
 With WP-Filebase you can...
 
@@ -52,8 +52,6 @@ For support, please [leave a message on my blog](http://fabi.me/wordpress-plugin
 
 **Note when updating to 0.2.1:** Since 0.2.1 WP-Filebase uses a different shortcode format. Old tags can be easily converted with the built-in converter. Please backup your database and run the converter right after the update. You should also run a filebase sync!
 **Important:** Don't upgrade to 0.2.1 if you are still running old PHP 4! WP-Filebase 0.2.1 only runs on PHP 5 and later!
-
-If you want to translate WP-Filebase in your language, open `wp-filebase/languages/template.po` with [Poedit](http://www.poedit.net/download.php) and save as `wpfb-xx_YY.po` (`xx` is your language code, `YY` your country). Poedit will create the file `wpfb-xx_YY.mo`. Put this file in `wp-filebase/languages` and share it if you like (attach it to an email or post it on my blog).
 
 **Note:** If you only want to limit traffic or bandwidth of media files you should take a look at my [Traffic Limiter Plugin](http://wordpress.org/extend/plugins/traffic-limiter/ "Traffic Limiter").
 
@@ -103,6 +101,41 @@ Goto WP-Filebase Settings and disable Permalinks under "Download". Try to disabl
 4. The Editor Button to insert tags for filelists and download urls
 
 == Changelog ==
+
+= 0.2.9.18 =
+* Added Category Sorting for file lists
+* MD5 displayed in file form
+* Safer file tree script loading
+
+= 0.2.9.17 =
+* Fixed category edit link
+* New option `Late script loading` for file browser
+* Updated getID3() to 1.9.3
+* Removed context menu shadow
+
+= 0.2.9.16 =
+* Fixed download permalinks
+* Fixed file list search
+
+= 0.2.9.15 =
+* Slovak translation by Peter Šuranský
+* Fixed query strings in download URLs
+* Fixed category icon caching
+* Fixed search widget
+
+= 0.2.9.14 =
+* French translation by Yann Charlon
+* Persion translation by Mahdi Maftouhi
+* Lithuanian translation by [Vincent G](http://www.host1free.com/)
+* Removed deprecated widget
+* Fixed search widget
+* Fixed caching bug `Wrong parameter count for trim()`
+* Fixed missing reference to `GetRelPath`
+* Fixed '#' in file names
+* Fixed file date reset when syncing
+* Fixed JS string escaping in editor plugin
+* Fixed thumbnail generator logic
+* Minor bug fixes
 
 = 0.2.9.13 =
 * Fixed file permissions bug
@@ -444,3 +477,9 @@ Goto WP-Filebase Settings and disable Permalinks under "Download". Try to disabl
 
 = 0.2.0 =
 PHP 5 or later required! This is a big upgrade with lots of new features. You have to convert old content tags to new shortcodes. Go to WP-Filebase management page and you should see a yellow box with the converter notice (backup the Database before!). And sync the filebase after that!
+
+== Translation ==
+If you want to translate WP-Filebase in your language, open `wp-filebase/languages/template.po` with [Poedit](http://www.poedit.net/download.php) and save as `wpfb-xx_YY.po` (`xx` is your language code, `YY` your country). Poedit will create the file `wpfb-xx_YY.mo`. Put this file in `wp-filebase/languages` and share it if you like (attach it to an email or post it on my blog).
+
+== Plugin Developers ==
+WP-Filebase currently offers the action `wpfilebase_sync`. This will run a fast filebase sync that adds new files.

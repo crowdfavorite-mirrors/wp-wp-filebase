@@ -169,7 +169,7 @@ function selectFile(id, name)
 		el.css('background-image', 'url('+yesImgUrl+')');
 		return;
 	} else if(currentTab == 'fileurl') {
-		var linkText = prompt('<?php _e('Enter link text:', WPFB) ?>', name);
+		var linkText = prompt("<?php echo esc_attr(__('Enter link text:', WPFB)); ?>", name);
 		if(!linkText || linkText == null || linkText == '')	return;
 		theTag.linktext = linkText;
 	} else {
@@ -324,6 +324,18 @@ WPFB_Admin::PrintForm('file', $file, array('in_editor'=>true, 'post_id'=>$post_i
 	<p>
 	<input type="checkbox" id="list-show-cats" name="list-show-cats" value="1" />
 	<label for="list-show-cats"><?php _e('List selected Categories',WPFB) ?></label>
+	</p>
+	<p id="cat-sorting-wrap">
+	<label for="list-cat-sort-by"><?php _e("Category sorting:") ?></label>
+	<select name="list-cat-sort-by" id="list-cat-sort-by" style="width:100%">
+		<option value=""><?php _e('None (Order of IDs in shortcode)'); ?></option>
+		<?php $opts = WPFB_Admin::CatSortFields();
+		foreach($opts as $tag => $name) echo '<option value="'.$tag.'">'.$tag.' - '.$name.'</option>'; ?>
+	</select>	
+	<input type="radio" checked="checked" name="list-cat-sort-order" id="list-cat-sort-order-asc" value="asc" />
+	<label for="list-cat-sort-order-asc" class="radio"><?php _e('Ascending'); ?></label>
+	<input type="radio" name="list-cat-sort-order" id="list-sort-order-desc" value="desc" />
+	<label for="list-cat-sort-order-desc" class="radio"><?php _e('Descending'); ?></label>
 	</p>
 	
 	<p><a class="button" style="float: right;" href="javascript:void(0)" onclick="return insListTag()"><?php echo _e('Insert') ?></a></p>

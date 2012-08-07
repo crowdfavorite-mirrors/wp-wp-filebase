@@ -68,12 +68,19 @@
 .wpfilebase-roles-checklist {
 	border: 1px solid #ddd; 
 	background-color: #fff;
-	width: 200px;
+	width: 150px;
+	height: 130px;
 	padding: 5px;
 	-moz-border-radius: 4px;
 	-khtml-border-radius: 4px;
 	-webkit-border-radius: 4px;
 	border-radius: 4px;
+	overflow: auto;
+}
+
+.wpfilebase-roles-checklist li {
+	margin: 0;
+	padding: 0;
 }
 
 #wpfilebase-donate {

@@ -176,7 +176,7 @@ function CatTree(&$root_cat)
 	echo '</li>';
 }
 
-
+// DEPRECATED TODO remove
 function CatListCntrl()
 {
 	echo "DEPRECATED";
@@ -204,27 +204,8 @@ class WPFB_UploadWidget extends WP_Widget {
 		
 		$prefix = "wpfb-upload-widget-".$this->id_base;
 		$form_url = add_query_arg('wpfb_upload_file', 1);
-		$nonce_action = "$prefix-".((int)!empty($instance['overwrite']))."-".$instance['category'];
-		?>		
-		<form enctype="multipart/form-data" name="<?php echo $prefix; ?>form" method="post" action="<?php echo $form_url; ?>">
-		<?php wp_nonce_field($nonce_action, 'wpfb-file-nonce'); ?>
-			<input type="hidden" name="overwrite" value="<?php echo !empty($instance['overwrite']) ?>" />
-			<input type="hidden" name="prefix" value="<?php echo $prefix ?>" />
-			<input type="hidden" name="cat" value="<?php echo $instance['category'] /* for noncing*/ ?>" />
-			<p>
-				<label for="<?php echo $prefix ?>file_upload"><?php _e('Choose File', WPFB) ?></label>
-				<input type="file" name="file_upload" id="<?php echo $prefix ?>file_upload" style="width: 160px" size="10" /><br />
-				<small><?php printf(str_replace('%d%s','%s',__('Maximum upload file size: %d%s'/*def*/)), WPFB_Output::FormatFilesize(WPFB_Core::GetMaxUlSize())) ?></small>
-				<?php if($instance['category'] == -1) { ?><br />
-				<label for="<?php echo $prefix ?>file_category"><?php _e('Category') ?></label>
-				<select name="file_category" id="<?php echo $prefix; ?>file_category"><?php echo WPFB_Output::CatSelTree(); ?></select>
-				<?php } else { ?>
-				<input type="hidden" name="file_category" value="<?php echo $instance['category']; ?>" />
-				<?php } ?>
-			</p>	
-			<p style="text-align:right;"><input type="submit" class="button-primary" name="submit-btn" value="<?php _ex('Add New', 'file'); ?>" /></p>
-		</form>
-	<?php
+		WPFB_Output::FileForm($prefix, $form_url, array('cat' => $instance['category'], 'overwrite' => (int)$instance['overwrite']));
+		
 		echo $after_widget;
 	}
 
@@ -313,10 +294,7 @@ class WPFB_SearchWidget extends WP_Widget {
 		parent::WP_Widget( false, WPFB_PLUGIN_NAME .' '.__('Search'), array('description' => __('Widget for searching files.',WPFB)) );
 	}
 
-	function widget( $args, $instance ) {			
-		if(!current_user_can('upload_files'))
-			return;
-
+	function widget( $args, $instance ) {
 		wpfb_loadclass('File', 'Category', 'Output');
 		
         extract( $args );
@@ -327,12 +305,13 @@ class WPFB_SearchWidget extends WP_Widget {
 		$form_url = add_query_arg('wpfb_add_cat', 1);
 		$nonce_action = $prefix;
 		?>
-		<form name="<?php echo $prefix ?>form" method="get" action="<?php echo remove_query_arg(array('p','post_id','page_id','wpfb_s')); ?>">
+		<form name="<?php echo $prefix ?>form" method="get" action="<?php echo remove_query_arg(array('p','post_id','page_id','wpfb_s')); ?>" class="searchform" id="searchform">
 		<input name="p" type="hidden" value="<?php echo WPFB_Core::GetOpt('file_browser_post_id') ?>" />
-			<p>
-				<input name="wpfb_s" id="<?php echo $prefix ?>search" type="text" value="" />
-			</p>
-			<p style="text-align:right;"><input type="submit" class="button-primary" name="btn" value="<?php _e('Search'/*def*/) ?>" /></p>
+		<fieldset>
+			<input name="wpfb_s" id="<?php echo $prefix ?>search" type="text" value="<?php echo empty($_GET['wpfb_s']) ? '' : esc_attr(stripslashes($_GET['wpfb_s'])) ?>" />
+			<!-- <button type="submit" name="searchsubmit" value="Search"></button> -->
+			<input type="submit" class="button-primary" name="searchsubmit" value="<?php _e('Search'/*def*/) ?>" />
+		</fieldset>	
 		</form>
 	<?php
 		echo $after_widget;

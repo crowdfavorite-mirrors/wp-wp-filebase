@@ -76,13 +76,19 @@ class WPFB_Item {
 		return reset($items);
 	}
 	
-	// Sorts an array of Items by SQL ORDER Clause
+	// Sorts an array of Items by SQL ORDER Clause ( or shortcode order clause (<file_name)
 	static function Sort(&$items, $order_sql) {
-		$p = strpos($order_sql,','); // strip multi order clauses
-		if($p >= 0) $order_sql = substr($order_sql, $p + 1);
-		$sort = explode(" ", trim($order_sql));
-		$on = trim($sort[0],'`');
-		$desc = (trim($sort[1]) == "DESC");					
+		$order_sql = str_replace(array('&gt;','&lt;'), array('>','<'), $order_sql);
+		if(($desc = ($order_sql{0} == '>')) || $order_sql{0} = '<')
+			$on = substr($order_sql,1);
+		else {
+			$p = strpos($order_sql,','); // strip multi order clauses
+			if($p >= 0) $order_sql = substr($order_sql, $p + 1);
+			$sort = explode(" ", trim($order_sql));
+			$on = trim($sort[0],'`');
+			$desc = (trim($sort[1]) == "DESC");
+		}
+		$on	= preg_replace('/[^0-9a-z]/i', '', $on); //strip hacking
 	    $comparer = $desc ? "return -strcmp(\$a->{$on},\$b->{$on});" : "return strcmp(\$a->{$on},\$b->{$on});";
     	usort($items, create_function('$a,$b', $comparer)); 
 	}
@@ -180,10 +186,10 @@ class WPFB_Item {
 		if($current_user->ID > 0 && empty($current_user->roles[0]))
 			$current_user = new WP_User($current_user->ID);// load the roles!
 		
-		if(($for_tpl && !WPFB_Core::GetOpt('hide_inaccessible')) || in_array('administrator',$current_user->roles))
+		if( ($for_tpl && !WPFB_Core::GetOpt('hide_inaccessible')) || in_array('administrator',$current_user->roles) || ($this->is_file && $this->CurUserIsOwner()) )
 			return true;
 		
-		if($this->is_file && WPFB_Core::GetOpt('private_files') && $this->file_added_by != 0 && $this->file_added_by != $current_user->ID) // check private files
+		if($this->is_file && WPFB_Core::GetOpt('private_files') && $this->file_added_by != 0 && !$this->CurUserIsOwner()) // check private files
 			return false;
 			
 		$frs = $this->GetUserRoles();
@@ -201,24 +207,21 @@ class WPFB_Item {
 		if($current_user->ID > 0 && empty($current_user->roles[0]))
 			$current_user = new WP_User($current_user->ID);// load the roles!
 		
-		if(in_array('administrator',$current_user->roles)) return true;
+		if(in_array('administrator',$current_user->roles) || ($this->is_file && $this->CurUserIsOwner())) return true;
 		if(!current_user_can('upload_files')) return false;
 		
-		if($this->is_file)
-			return ($this->file_added_by == $current_user->ID || (current_user_can('edit_others_posts') && !WPFB_Core::GetOpt('private_files')));
-		else
-			return current_user_can('manage_categories');
+		return $this->is_file ? (current_user_can('edit_others_posts') && !WPFB_Core::GetOpt('private_files')) : current_user_can('manage_categories');
 	}
 	
 	function GetUrl($rel=false)
 	{
 		$ps = WPFB_Core::GetOpt('disable_permalinks') ? null : get_option('permalink_structure');		
 		if($this->is_file) {
-			if(!empty($ps)) $url = home_url(WPFB_Core::GetOpt('download_base').'/'.$this->GetLocalPathRel());
+			if(!empty($ps)) $url = home_url(str_replace('#','%23',WPFB_Core::GetOpt('download_base').'/'.$this->GetLocalPathRel()));
 			else $url = home_url('?wpfb_dl='.$this->file_id);
 		} else {
 			$url = get_permalink(WPFB_Core::GetOpt('file_browser_post_id'));	
-			if(!empty($ps)) $url .= $this->GetLocalPathRel().'/';
+			if(!empty($ps)) $url .= str_replace('#','%23',$this->GetLocalPathRel()).'/';
 			elseif($this->cat_id > 0) $url = add_query_arg(array('wpfb_cat' => $this->cat_id), $url);
 			$url .= "#wpfb-cat-$this->cat_id";	
 		}
@@ -273,9 +276,15 @@ class WPFB_Item {
 	}
 	
 	function GetIconUrl($size=null) {
-		if($this->is_category) return WPFB_PLUGIN_URI . (empty($this->cat_icon) ? ('images/'.(($size=='small')?'folder48':'crystal_cat').'.png') : 'wp-filebase_thumb.php?cid=' . $this->cat_id);
+		// todo: remove file operations!
+		
+		if($this->is_category)
+		{
+			// add mtime for cache updates
+			return WPFB_PLUGIN_URI . (empty($this->cat_icon) ? ('images/'.(($size=='small')?'folder48':'crystal_cat').'.png') : "wp-filebase_thumb.php?cid=$this->cat_id&t=".filemtime($this->GetThumbPath()));
+		}
 
-		if(!empty($this->file_thumbnail) && file_exists($this->GetThumbPath()))
+		if(!empty($this->file_thumbnail) /* && file_exists($this->GetThumbPath())*/) // speedup
 		{
 			return WPFB_PLUGIN_URI . 'wp-filebase_thumb.php?fid='.$this->file_id.'&name='.$this->file_thumbnail; // name var only for correct caching!
 		}
@@ -431,6 +440,7 @@ class WPFB_Item {
 							$thumb_path = substr($thumb_path, 0, $p)."($i)".substr($thumb_path, $p);
 							$this->file_thumbnail = basename($thumb_path);			
 						}
+						if(!is_dir(dirname($thumb_path))) WPFB_Admin::Mkdir(dirname($thumb_path));
 						if(!@rename($old_thumb_path, $thumb_path)) return array( 'error' =>'Unable to move thumbnail! '.$thumb_path);
 						@chmod($thumb_path, octdec(WPFB_PERM_FILE));
 					}

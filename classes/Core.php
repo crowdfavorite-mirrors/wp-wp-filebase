@@ -44,7 +44,7 @@ static function InitClass()
 	
 	// widgets
 	wp_register_sidebar_widget(WPFB_PLUGIN_NAME, WPFB_PLUGIN_NAME .' '. __('File list', WPFB), array(__CLASS__, 'FileWidget'), array('description' => __('Lists the latest or most popular files', WPFB)));
-	wp_register_sidebar_widget(WPFB_PLUGIN_NAME.'_cats', "[DEPRECATED]".WPFB_PLUGIN_NAME.' ' . __('Category list', WPFB), array(__CLASS__, 'CatWidget'), array('description' => __('Simple listing of file categories', WPFB)));
+	//wp_register_sidebar_widget(WPFB_PLUGIN_NAME.'_cats', "[DEPRECATED]".WPFB_PLUGIN_NAME.' ' . __('Category list', WPFB), array(__CLASS__, 'CatWidget'), array('description' => __('Simple listing of file categories', WPFB)));
 	//wp_register_sidebar_widget(WPFB_PLUGIN_NAME.'_upload', WPFB_PLUGIN_NAME.' ' . __('File upload', WPFB), array(__CLASS__, 'UploadWidget'), array('description' => __('Supplies a form for uploading files', WPFB)));
 	
 	if((is_admin() && !empty($_GET['page']) && strpos($_GET['page'], 'wpfilebase_') !== false) || defined('WPFB_EDITOR_PLUGIN'))
@@ -67,7 +67,8 @@ static function InitClass()
 		
 	self::DownloadRedirect();
 	
-	if(current_user_can('upload_files')) {
+	if(current_user_can('upload_files'))
+	{
 		if(!empty($_GET['wpfb_upload_file']) || !empty($_GET['wpfb_add_cat'])) {
 			wpfb_call('Admin', empty($_GET['wpfb_upload_file'])?'ProcessWidgetAddCat':'ProcessWidgetUpload');
 		}
@@ -111,7 +112,7 @@ static function GetOpt($name = null) {
 }
 
 static function FileWidget($args) { return wpfb_call('Widget', 'FileList', $args); }
-static function CatWidget($args) { return wpfb_call('Widget', 'CatList', $args); }
+//static function CatWidget($args) { return wpfb_call('Widget', 'CatList', $args); } // DEPRECATED
 //static function UploadWidget($args) { return wpfb_call('Widget', 'Upload', $args); } // uses new class-style widgets
 
 static function DownloadRedirect()
@@ -130,6 +131,7 @@ static function DownloadRedirect()
 		$pos = strpos($_SERVER['REQUEST_URI'], $dl_url_path);
 		if($pos !== false && $pos == 0) {
 			$filepath = trim(substr($_SERVER['REQUEST_URI'], strlen($dl_url_path)), '/');
+			if( ($qs=strpos($filepath,'?')) !== false ) $filepath = substr($filepath,0,$qs); // remove query string
 			if(!empty($filepath)) {
 				wpfb_loadclass('File','Category');
 				$file = WPFB_File::GetByPath($filepath);
@@ -210,22 +212,6 @@ function ContentFilter($content)
 	
 	if(!empty($post) && is_object($post) && !post_password_required())
 	{
-		$single = is_single() || is_page();
-		
-		if($single && $post->ID == WPFB_Core::GetOpt('file_browser_post_id')) {
-			$wpfb_fb = true;
-			wpfb_loadclass('Output', 'File', 'Category');
-			WPFB_Output::FileBrowser($content, 0, empty($_GET['wpfb_cat']) ? 0 : intval($_GET['wpfb_cat']));
-		}
-	
-		if(self::GetOpt('auto_attach_files') && ($single || self::GetOpt('attach_loop'))) {
-			wpfb_loadclass('Output');			
-			if(WPFB_Core::GetOpt('attach_pos') == 0)
-				$content = WPFB_Output::PostAttachments(true) . $content;
-			else
-				$content .= WPFB_Output::PostAttachments(true);
-		}
-		
 		// TODO: file resulst are generated twice, 2nd time in the_excerpt filter (SearchExcerptFilter)
 		// some themes do not use excerpts in search resulsts!!
 		// replace file browser post content with search results
@@ -234,13 +220,29 @@ function ContentFilter($content)
 			wpfb_loadclass('Search','File','Category');
 			$content = '';
 			WPFB_Search::FileSearchContent($content);
+		} else { // do not hanlde attachments when searching
+			$single = is_single() || is_page();
+			
+			if($single && $post->ID == WPFB_Core::GetOpt('file_browser_post_id')) {
+				$wpfb_fb = true;
+				wpfb_loadclass('Output', 'File', 'Category');
+				WPFB_Output::FileBrowser($content, 0, empty($_GET['wpfb_cat']) ? 0 : intval($_GET['wpfb_cat']));
+			}
+		
+			if(self::GetOpt('auto_attach_files') && ($single || self::GetOpt('attach_loop'))) {
+				wpfb_loadclass('Output');			
+				if(WPFB_Core::GetOpt('attach_pos') == 0)
+					$content = WPFB_Output::PostAttachments(true) . $content;
+				else
+					$content .= WPFB_Output::PostAttachments(true);
+			}
 		}
 	}
 
     return $content;
 }
 
-static function ShortCode($atts, $content=null) {
+static function ShortCode($atts, $content=null, $tag=null) {
 	wpfb_loadclass('Output');
 	return WPFB_Output::ProcessShortCode(shortcode_atts(array(
 		'tag' => 'list', // file, fileurl, attachments
@@ -249,10 +251,11 @@ static function ShortCode($atts, $content=null) {
 		'tpl' => null,
 		'sort' => null,
 		'showcats' => false,
+		'sortcats' => null,
 		'num' => 0,
 		'pagenav' => 1,
-		'linktext' => null
-	), $atts), $content);
+		'linktext' => null,
+	), $atts), $content, $tag);
 }
 
 
@@ -413,8 +416,12 @@ static function EnqueueScripts()
 {
 	global $wp_query;
 	
-	if(!empty($wp_query->queried_object_id) && $wp_query->queried_object_id == WPFB_Core::GetOpt('file_browser_post_id'))
-		wpfb_call('Output', 'InitFileTreeView'); // this loads the scripts required for file trees (this fixes the wp_print_scripts bug caused by other plugins, but only for the file browser page)	
+	if( !WPFB_Core::GetOpt('late_script_loading')
+			&& ((!empty($wp_query->queried_object_id) && $wp_query->queried_object_id == WPFB_Core::GetOpt('file_browser_post_id')) ||
+			!empty($wp_query->post) && $wp_query->post->ID == WPFB_Core::GetOpt('file_browser_post_id'))) {
+		wp_enqueue_script('jquery-treeview-async');
+		wp_enqueue_style('jquery-treeview');
+	}
 }
 
 static function PrintJS() {
@@ -523,11 +530,11 @@ static function AdminBar() {
 	
 }
 
-static function Sync() { return wpfb_call('Admin', 'Sync'); }
+static function Sync() { wpfb_call('Sync', 'Sync'); }
 
 static function Cron() {
 	if(self::GetOpt('cron_sync'))
-		self::Sync();
+		wpfb_call('Sync', 'Sync');
 }
 
 static function GetMaxUlSize() {

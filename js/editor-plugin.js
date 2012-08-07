@@ -156,6 +156,14 @@ function insListTag() {
 	var showcats = !!jQuery('#list-show-cats:checked').val();
 	if(showcats) tag.showcats = 1;
 	
+	var sortcatsby = jQuery('#list-cat-sort-by').val();	
+	if(showcats && sortcatsby && sortcatsby != '') {
+		var order = jQuery('input[name=list-cat-sort-order]:checked', '#list').val();
+		if(order == 'desc') sortcatsby = '&gt;'+sortcatsby;
+		else if(order == 'asc') sortcatsby = '&lt;'+sortcatsby;
+		tag.sortcats = sortcatsby;
+	}
+	
 	var num = parseInt(jQuery('#list-num').val());
 	if(num != 0) tag.num = num;
 	
@@ -218,26 +226,31 @@ function refreshTrees() {
 }
 
 jQuery(document).ready( function()
-		{
-			jQuery(".media-item a").hide();
-			jQuery(".media-item").hover(
-				function(){jQuery("a",this).show();}, 
-				function(){jQuery("a",this).hide();}
-			);
-			
-			if(!manageAttachments)
-			{
-				var win = window.dialogArguments || opener || parent || top;
-				if(win && typeof(win.tinymce) != 'undefined' && win.tinymce)
-					theEditor = win.tinymce.EditorManager.activeEditor;
-				else
-					theEditor = null;
-			
-				tabclick(jQuery("a", jQuery('#sidemenu')).get(0));
-			
-				if (!autoAttachFiles && theEditor && theEditor.getContent().search(/\[wpfilebase\s+tag\s*=\s*['"]attachments['"]/) != -1)
-					jQuery('#no-auto-attach-note').hide(); 	// no notice if attachments tag is in	
-			}
-			
-			refreshTrees();
-		});
+{
+	jQuery(".media-item a").hide();
+	jQuery(".media-item").hover(
+		function(){jQuery("a",this).show();}, 
+		function(){jQuery("a",this).hide();}
+	);
+	
+	if(!manageAttachments)
+	{
+		var win = window.dialogArguments || opener || parent || top;
+		if(win && typeof(win.tinymce) != 'undefined' && win.tinymce)
+			theEditor = win.tinymce.EditorManager.activeEditor;
+		else
+			theEditor = null;
+	
+		tabclick(jQuery("a", jQuery('#sidemenu')).get(0));
+	
+		if (!autoAttachFiles && theEditor && theEditor.getContent().search(/\[wpfilebase\s+tag\s*=\s*['"]attachments['"]/) != -1)
+			jQuery('#no-auto-attach-note').hide(); 	// no notice if attachments tag is in	
+	}
+	
+	refreshTrees();
+	
+	jQuery('#cat-sorting-wrap').hide();
+	jQuery('#list-show-cats').change(function(){
+		jQuery('#cat-sorting-wrap').toggle(!!jQuery('#list-show-cats:checked').val());
+	});
+});

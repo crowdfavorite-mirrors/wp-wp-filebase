@@ -79,8 +79,8 @@ switch ( $action = $_REQUEST['action'] ) {
 		}
 		
 		if((empty($_REQUEST['cats_only']) || $_REQUEST['cats_only'] == 'false') && !$catsel) {
-			$where = array('file_category' => $parent_id);
-			if(!empty($_REQUEST['exclude_attached']) && $_REQUEST['exclude_attached'] != 'false') $where['file_post_id'] = 0;
+			$where = WPFB_File::GetSqlCatWhereStr($parent_id);
+			if(!empty($_REQUEST['exclude_attached']) && $_REQUEST['exclude_attached'] != 'false') $where .= " AND `file_post_id` = 0";
 			$files = WPFB_File::GetFiles2(
 				$where, WPFB_Core::GetOpt('hide_inaccessible'),
 				$browser ? WPFB_Core::GetFileListSortSql((WPFB_Core::GetOpt('file_browser_file_sort_dir')?'>':'<').WPFB_Core::GetOpt('file_browser_file_sort_by')) : 'file_name'

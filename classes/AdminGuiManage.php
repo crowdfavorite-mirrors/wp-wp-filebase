@@ -175,9 +175,9 @@ static function Display()
 				wpfb_call('AdminHowToStart', 'Display');
 		?>
 			
-			<h2><?php _e('Copyright'); ?></h2>
+			<h2><?php _e('About'); ?></h2>
 			<p>
-			<?php echo WPFB_PLUGIN_NAME . ' ' . WPFB_VERSION ?> Copyright &copy; 2011 by Fabian Schlieper <a href="http://fabi.me/">
+			<?php echo WPFB_PLUGIN_NAME . ' ' . WPFB_VERSION ?> by Fabian Schlieper <a href="http://fabi.me/">
 			<?php if(strpos($_SERVER['SERVER_PROTOCOL'], 'HTTPS') === false) { ?><img src="http://fabi.me/misc/wpfb_icon.gif?lang=<?php if(defined('WPLANG')) {echo WPLANG;} ?>" alt="" /><?php } ?> fabi.me</a><br/>
 			Includes the great file analyzer <a href="http://www.getid3.org/">getID3()</a> by James Heinrich
 			</p><?php
@@ -250,8 +250,8 @@ static function Display()
 			
 		case 'sync':
 			echo '<h2>'.__('Synchronisation').'</h2>';
-			
-			$result = WPFB_Admin::Sync(!empty($_GET['hash_sync']), true);
+			wpfb_loadclass('Sync');
+			$result = WPFB_Sync::Sync(!empty($_GET['hash_sync']), true);
 			$num_changed = $num_added = $num_errors = 0;
 			foreach($result as $tag => $group)
 			{

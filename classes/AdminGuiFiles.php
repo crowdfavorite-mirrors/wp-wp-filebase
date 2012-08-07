@@ -265,7 +265,6 @@ static function Display()
 <?php
 }
 
-
 static function PrintFileInfo($info, $path='file_info')
 {
 	foreach($info as $key => $val)

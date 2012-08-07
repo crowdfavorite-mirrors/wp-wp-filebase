@@ -3,7 +3,7 @@ class WPFB_Output {
 static $page_title = '';
 static $page_content = '';
 
-static function ProcessShortCode($args, $content = null)
+static function ProcessShortCode($args, $content = null, $tag = null)
 {
 	$id = empty($args ['id']) ? -1 : intval($args ['id']);
 	if($id <= 0 && !empty($args['path'])) { // path indentification
@@ -101,7 +101,7 @@ static function FileList($args)
 		}
 	}
 	
-	return $tpl->Generate($cats, $args['showcats'], $args['sort'], $args['num']);
+	return $tpl->Generate($cats, $args['showcats'], $args['sort'], $args['num'], $args['sortcats']);
 }
 
 static function FileBrowser(&$content, $root_cat_id=0, $cur_cat_id=0)
@@ -112,7 +112,7 @@ static function FileBrowser(&$content, $root_cat_id=0, $cur_cat_id=0)
 	wpfb_loadclass('Category','File');
 	
 	if(WPFB_Core::$file_browser_search) {
-		
+		// see Core::ContentFilter
 	} else {
 		$root_cat = ($root_cat_id==0) ? null : WPFB_Category::GetCat($root_cat_id);
 		
@@ -120,7 +120,8 @@ static function FileBrowser(&$content, $root_cat_id=0, $cur_cat_id=0)
 		if($cur_cat_id > 0) {
 			$cur_cat = WPFB_Category::GetCat($cur_cat_id);
 		} else {
-			$url = (is_ssl()?'https':'http').'://'.$_SERVER["HTTP_HOST"].$_SERVER["REQUEST_URI"];		
+			$url = (is_ssl()?'https':'http').'://'.$_SERVER["HTTP_HOST"].$_SERVER['REQUEST_URI'];
+			if( ($qs=strpos($url,'?')) !== false ) $url = substr($url,0,$qs); // remove query string	
 			$path = trim(substr($url, strlen(WPFB_Core::GetPostUrl(self::GetPostId()))), '/');
 			if(!empty($path))
 				$cur_cat = WPFB_Category::GetByPath($path);
@@ -134,7 +135,7 @@ static function FileBrowser(&$content, $root_cat_id=0, $cur_cat_id=0)
 		self::InitFileTreeView($el_id, $root_cat);
 		
 		// thats all, JS is loaded in Core::Header
-		$content .= '<ul id="'.$el_id.'">';
+		$content .= '<ul id="'.$el_id.'" class="treeview">';
 	
 		$parents = array();
 		if(!is_null($cur_cat)) {
@@ -272,7 +273,7 @@ static function CatSelTree($args=null, $root_cat_id = 0, $depth = 0)
 		$out .= '<option value="0"'.((0==$s_sel)?' selected="selected"':'').' style="font-style:italic;">' .(empty($s_nol) ? __('None'/*def*/) : $s_nol) . ($s_count?' ('.WPFB_File::GetNumFiles(0).')':'').'</option>';
 		$cats = &WPFB_Category::GetCats();
 		foreach($cats as $c) {
-			if($c->cat_parent <= 0 && $c->cat_id != $s_ex)
+			if($c->cat_parent <= 0 && $c->cat_id != $s_ex && $c->CurUserCanAccess())
 				$out .= self::CatSelTree(null, $c->cat_id, 0);	
 		}
 	} else {
@@ -281,7 +282,7 @@ static function CatSelTree($args=null, $root_cat_id = 0, $depth = 0)
 
 		if(isset($cat->cat_childs)) {
 			foreach($cat->cat_childs as $c) {
-				if($c->cat_id != $s_ex)
+				if($c->cat_id != $s_ex && $c->CurUserCanAccess())
 					$out .= self::CatSelTree(null, $c->cat_id, $depth + 1);
 			}
 		}
@@ -291,22 +292,13 @@ static function CatSelTree($args=null, $root_cat_id = 0, $depth = 0)
 
 
 static function InitFileTreeView($id=null, $root=0)
-{
-	static $tv_plugin_loaded = false;
-	
+{	
 	WPFB_Core::$load_js = true;
 	
-	if(!$tv_plugin_loaded) {
-		if($id == null) {
-			wp_enqueue_script('jquery-treeview-async');
-			wp_enqueue_style('jquery-treeview');
-		} else { // when id is set, assume that this was called inside the content, so have to print scripts here 
-			wp_print_scripts('jquery-treeview-async');
-			wp_print_styles('jquery-treeview');
-		}
-		$tv_plugin_loaded = true;
-	}
-	
+	// see Core::EnqueueScripts(), where scripts are enqueued if late script loading is disabled
+	wp_print_scripts('jquery-treeview-async');
+	wp_print_styles('jquery-treeview');
+		
 	if(is_object($root)) $root = $root->GetId();
 	
 	if($id != null) {
@@ -407,5 +399,35 @@ static function RoleNames($roles, $fmt_string=false) {
 	foreach($roles as $role)
 		$names[$role] = translate_user_role($wp_roles->roles[$role]['name']);
 	return $fmt_string ? (empty($names) ? ("<i>".__('Everyone',WPFB)."</i>") : join(', ',$names)) : $names;
+}
+
+static function FileForm($prefix, $form_url, $vars, $secret_key=null) {
+	$category = $vars['cat'];
+	$nonce_action = "$prefix=";
+	if(!empty($secret_key)) $nonce_action .= $secret_key
+	?>
+		<form enctype="multipart/form-data" name="<?php echo $prefix; ?>form" method="post" action="<?php echo $form_url; ?>">
+		<?php 
+		foreach($vars as $n => $v) {
+			echo '<input type="hidden" name="'.esc_attr($n).'" value="'.esc_attr($v).'" />';
+			$nonce_action .= "&$n=$v";
+		}
+		
+		wp_nonce_field($nonce_action, 'wpfb-file-nonce'); ?>
+			<input type="hidden" name="prefix" value="<?php echo $prefix ?>" />
+			<p>
+				<label for="<?php echo $prefix ?>file_upload"><?php _e('Choose File', WPFB) ?></label>
+				<input type="file" name="file_upload" id="<?php echo $prefix ?>file_upload" /><br /> <!--   style="width: 160px" size="10" -->
+				<small><?php printf(str_replace('%d%s','%s',__('Maximum upload file size: %d%s'/*def*/)), WPFB_Output::FormatFilesize(WPFB_Core::GetMaxUlSize())) ?></small>
+				<?php if($category == -1) { ?><br />
+				<label for="<?php echo $prefix ?>file_category"><?php _e('Category') ?></label>
+				<select name="file_category" id="<?php echo $prefix; ?>file_category"><?php wpfb_loadclass('Category'); echo WPFB_Output::CatSelTree(); ?></select>
+				<?php } else { ?>
+				<input type="hidden" name="file_category" value="<?php echo $category; ?>" />
+				<?php } ?>
+			</p>	
+			<p style="text-align:right;"><input type="submit" class="button-primary" name="submit-btn" value="<?php _ex('Add New', 'file'); ?>" /></p>
+		</form>	
+	<?php
 }
 }

@@ -116,6 +116,8 @@ class WPFB_Category extends WPFB_Item {
 		//{
 			if($file->file_category == $this->cat_id) $this->cat_num_files--;
 			$this->cat_num_files_total--;
+			if($this->cat_num_files < 0) $this->cat_num_files = 0;
+			if($this->cat_num_files_total < 0) $this->cat_num_files_total = 0;
 			if(!$this->locked) $this->DBSave();
 		//}
 		

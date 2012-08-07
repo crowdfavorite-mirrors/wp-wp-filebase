@@ -232,7 +232,7 @@ static function TplsTable($type) {
 	$edit_link = add_query_arg(array('action'=>'edit','type'=>$type,'tpl'=>$tpl_tag));
 	if($list) $tpl = WPFB_ListTpl::Get($tpl_tag);
 	
-	$table_found = (strpos($tpl_src, '<table') !== false);
+	$table_found = !$list && (strpos($tpl_src, '<table') !== false);
 	if(!$list && !$table_found && strpos($tpl_src, '<tr') !== false) {
 		$tpl_src = "<table>$tpl_src</table>";
 	}

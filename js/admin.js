@@ -2,7 +2,8 @@
 function WPFB_PostBrowser(inputId, titleId)
 {
 	var postId = document.getElementById(inputId).value;
-	var browserWindow = window.open("../wp-content/plugins/wp-filebase/wpfb-postbrowser.php?post=" + postId + "&inp_id=" + inputId + "&tit_id=" + titleId, "PostBrowser", "width=300,height=400,menubar=no,location=no,resizable=no,status=no,toolbar=no,scrollbars=yes");
+	var pluginUrl = (typeof(wpfbConf.ajurl) == 'undefined') ? "../wp-content/plugins/wp-filebase/" : (wpfbConf.ajurl+"/../");
+	var browserWindow = window.open(pluginUrl+"wpfb-postbrowser.php?post=" + postId + "&inp_id=" + inputId + "&tit_id=" + titleId, "PostBrowser", "width=300,height=400,menubar=no,location=no,resizable=no,status=no,toolbar=no,scrollbars=yes");
 	browserWindow.focus();
 }
 
