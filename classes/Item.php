@@ -88,7 +88,7 @@ class WPFB_Item {
 			$on = trim($sort[0],'`');
 			$desc = (trim($sort[1]) == "DESC");
 		}
-		$on	= preg_replace('/[^0-9a-z]/i', '', $on); //strip hacking
+		$on	= preg_replace('/[^0-9a-z_]/i', '', $on); //strip hacking
 	    $comparer = $desc ? "return -strcmp(\$a->{$on},\$b->{$on});" : "return strcmp(\$a->{$on},\$b->{$on});";
     	usort($items, create_function('$a,$b', $comparer)); 
 	}
@@ -213,17 +213,17 @@ class WPFB_Item {
 		return $this->is_file ? (current_user_can('edit_others_posts') && !WPFB_Core::GetOpt('private_files')) : current_user_can('manage_categories');
 	}
 	
-	function GetUrl($rel=false)
-	{
-		$ps = WPFB_Core::GetOpt('disable_permalinks') ? null : get_option('permalink_structure');		
-		if($this->is_file) {
-			if(!empty($ps)) $url = home_url(str_replace('#','%23',WPFB_Core::GetOpt('download_base').'/'.$this->GetLocalPathRel()));
-			else $url = home_url('?wpfb_dl='.$this->file_id);
-		} else {
+	function GetUrl($rel=false, $to_file_page=false)
+	{ // TODO: rawurlencode??
+		$ps = WPFB_Core::GetOpt('disable_permalinks') ? null : get_option('permalink_structure');
+		if($this->is_category || $to_file_page) {
 			$url = get_permalink(WPFB_Core::GetOpt('file_browser_post_id'));	
 			if(!empty($ps)) $url .= str_replace('#','%23',$this->GetLocalPathRel()).'/';
-			elseif($this->cat_id > 0) $url = add_query_arg(array('wpfb_cat' => $this->cat_id), $url);
-			$url .= "#wpfb-cat-$this->cat_id";	
+			elseif($this->GetId() > 0) $url = add_query_arg(array(($this->is_file?"wpfb_file":"wpfb_cat") => $this->GetId()), $url);
+			if($this->is_category) $url .= "#wpfb-cat-$this->cat_id";	
+		} else {
+			if(!empty($ps)) $url = home_url(str_replace('#','%23',WPFB_Core::GetOpt('download_base').'/'.$this->GetLocalPathRel()));
+			else $url = home_url('?wpfb_dl='.$this->file_id);			
 		}
 		if($rel) {
 			$url = substr($url, strlen(home_url()));
@@ -258,6 +258,27 @@ class WPFB_Item {
 		self::$tpl_uid++;
 		$f =& $this;
 		return eval("return ($parsed_tpl);");
+	}
+	
+	function GenTpl2($tpl_tag=null, $load_js=true)
+	{
+		static $tpl_funcs = array('file' => array(), 'cat' => array());
+		
+		if(empty($tpl_tag)) $tpl_tag = 'default';
+		if($load_js) WPFB_Core::$load_js = true;	
+			
+		$type = $this->is_file ? 'file' : 'cat';
+		
+		if(empty($tpl_funcs[$type][$tpl_tag]))
+		{
+			$parsed_tpl = WPFB_Core::GetParsedTpl($this->is_file?'file':'cat', $tpl_tag);
+			if(empty($parsed_tpl)) return "Template $type :: $tpl_tag does not exist!";
+			$tpl_funcs[$type][$tpl_tag] = WPFB_Core::CreateTplFunc($parsed_tpl);
+		}
+		
+		self::$tpl_uid++;
+			
+		return $tpl_funcs[$type][$tpl_tag]($this);
 	}
 	
 	function GetThumbPath($refresh=false)
@@ -409,8 +430,8 @@ class WPFB_Item {
 							@unlink($new_path);
 					}
 				} else {
-					// rename item if filename collision
-					while(@file_exists($new_path) || !is_null($ex_file = WPFB_File::GetByPath($new_path_rel))) {
+					// rename item if filename collision (ignore if coliding with $this)
+					while(@file_exists($new_path) || (!is_null($ex_file = WPFB_File::GetByPath($new_path_rel)) && !$this->Equals($ex_file))) {
 						$i++;	
 						if($this->is_file) {
 							$p = strrpos($name, '.');

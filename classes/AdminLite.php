@@ -17,12 +17,12 @@ static function InitClass()
 	}
 	
 	
-	wp_register_widget_control(WPFB_PLUGIN_NAME, WPFB_PLUGIN_NAME .' '. __('File list'), array(__CLASS__, 'WidgetFileListControl'), array('description' => __('Lists the latest or most popular files', WPFB)));
-	wp_register_widget_control(WPFB_PLUGIN_NAME.'_cats', "[DEPRECATED]".WPFB_PLUGIN_NAME.' ' . __('Category list'), array(__CLASS__, 'WidgetCatListControl'), array('description' => __('Simple listing of file categories', WPFB)));
+	wp_register_widget_control(WPFB_PLUGIN_NAME, "[DEPRECATED]".WPFB_PLUGIN_NAME .' '. __('File list'), array(__CLASS__, 'WidgetFileListControl'), array('description' => __('DEPRECATED', WPFB)));
 	
 	add_action('admin_print_scripts', array('WPFB_AdminLite', 'PrintCKEditorPlugin'));
 	
 	self::CheckChangedVer();
+	
 }
 
 static function SetupMenu()
@@ -76,19 +76,12 @@ static function WidgetFileListControl()
 	WPFB_Widget::FileListCntrl();
 }
 
-static function WidgetCatListControl()
-{
-	WPFB_Core::LoadLang();
-	wpfb_loadclass('Widget');
-	WPFB_Widget::CatListCntrl();
-}
-
 private static function CheckChangedVer()
 {
 	$ver = wpfb_call('Core', 'GetOpt', 'version');
 	if($ver != WPFB_VERSION) {
-		wpfilebase_activate();
-		//echo '<!-- WPFilebase: version changed -->';
+		wpfb_loadclass('Setup');
+		WPFB_Setup::OnActivateOrVerChange($ver);
 	}
 }
 

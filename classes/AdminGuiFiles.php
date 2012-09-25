@@ -282,12 +282,13 @@ static function PrintFileInfo($info, $path='file_info')
 
 static function FileInfoPathsBox($info)
 {
-	?><p>The following tags can be used in templates. For example, if you want to display the Artist of a MP3 File, put <code>%file_info/tags/id3v2/artist%</code> inside the template code.</p>
-	<p><pre><?php self::PrintFileInfo(empty($info->value) ? $info : $info->value); ?></pre></p>
-	
+	?><p><?php printf(__('The following tags can be used in templates. For example, if you want to display the Artist of a MP3 File, put %s inside the template code.', WPFB), '<code>%file_info/tags/id3v2/artist%</code>'); ?></p>
+	<pre>
+	<?php self::PrintFileInfo(empty($info->value) ? $info : $info->value); ?>
+	</pre>	
 	<?php
 	if(!empty($info->keywords)) {
-		?><p><b>Keywords (used for search):</b> <?php echo esc_html($info->keywords) ?></p> <?php
+		?><p><b><?php _e('Keywords used for search:',WPFB) ?></b> <?php echo esc_html($info->keywords) ?></p> <?php
 	}
 }
 }

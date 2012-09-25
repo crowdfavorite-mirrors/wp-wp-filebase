@@ -5,12 +5,11 @@ error_reporting(0);
 require_once(dirname(__FILE__).'/../../../wp-load.php');
 
 function wpfb_print_json($obj) {
-	@ob_end_clean();
 	if(!WP_DEBUG)
 		@header('Content-Type: application/json; charset=' . get_option('blog_charset'));
-	echo json_encode($obj);
-	@ob_flush();
-	@flush();
+	$json = json_encode($obj);
+	@header('Content-Length: '.strlen($json));
+	echo $json;
 	exit;
 }
 
@@ -32,7 +31,7 @@ switch ( $action = $_REQUEST['action'] ) {
 	case 'tree':
 		$type = $_REQUEST['type'];
 		
-		wpfb_loadclass('File','Category','Output');
+		wpfb_loadclass('Core','File','Category','Output');
 		
 		// fixed exploit, thanks to Miroslav Stampar http://unconciousmind.blogspot.com/
 		$base_id = empty($_REQUEST['base']) ? 0 : intval($_REQUEST['base']);		
@@ -50,12 +49,8 @@ switch ( $action = $_REQUEST['action'] ) {
 		$cat_id_format = empty($_REQUEST['cat_id_fmt']) ? 'wpfb-cat-%d' : $_REQUEST['cat_id_fmt'];
 		$file_id_format = empty($_REQUEST['file_id_fmt']) ? 'wpfb-file-%d' : $_REQUEST['file_id_fmt'];
 		if($filesel || $catsel) $onselect = $_REQUEST['onselect'];
-		$i = 0;
-		$children = array();
 		
-		$cat_tpl = WPFB_Core::GetParsedTpl('cat', 'filebrowser');
-		$file_tpl = WPFB_Core::GetParsedTpl('file', 'filebrowser');
-	
+		$files_before_cats = $browser && WPFB_Core::GetOpt('file_browser_fbc');	
 		
 		$cats = $browser ? WPFB_Category::GetFileBrowserCats($parent_id) : WPFB_Category::GetCats("WHERE cat_parent = $parent_id ORDER BY cat_name ASC");	
 		if($parent_id == 0 && $catsel && count($cats) == 0) {
@@ -67,17 +62,21 @@ switch ( $action = $_REQUEST['action'] ) {
 			exit;
 		}
 		
+		$cat_items = array();
+		$i = 0;
 		foreach($cats as $c)
 		{
 			if($c->CurUserCanAccess())
-				$children[$i++] = array('id'=>sprintf($cat_id_format, $c->cat_id),
+				$cat_items[$i++] = array('id'=>sprintf($cat_id_format, $c->cat_id),
 					'text'=> $catsel ?
 									('<a href="javascript:'.sprintf($onselect,$c->cat_id,str_replace('\'','\\\'', htmlspecialchars(stripslashes($c->cat_name)))).'">'.esc_html($c->GetTitle(24)).'</a>')
-								   :($filesel ? (esc_html($c->cat_name)." ($c->cat_num_files / $c->cat_num_files_total)") : $c->GenTpl($cat_tpl, 'ajax')),
+								   :($filesel ? (esc_html($c->cat_name)." ($c->cat_num_files / $c->cat_num_files_total)") : $c->GenTpl2('filebrowser', false)),
 					'hasChildren'=>($catsel?(count($c->GetChildCats())>0):($c->cat_num_files_total > 0)),
 					'classes'=>($filesel||$catsel)?'folder':null);
 		}
 		
+		$file_items = array();
+		$i = 0;		
 		if((empty($_REQUEST['cats_only']) || $_REQUEST['cats_only'] == 'false') && !$catsel) {
 			$where = WPFB_File::GetSqlCatWhereStr($parent_id);
 			if(!empty($_REQUEST['exclude_attached']) && $_REQUEST['exclude_attached'] != 'false') $where .= " AND `file_post_id` = 0";
@@ -86,10 +85,10 @@ switch ( $action = $_REQUEST['action'] ) {
 				$browser ? WPFB_Core::GetFileListSortSql((WPFB_Core::GetOpt('file_browser_file_sort_dir')?'>':'<').WPFB_Core::GetOpt('file_browser_file_sort_by')) : 'file_name'
 			);
 			foreach($files as $f)
-				$children[$i++] = array('id'=>sprintf($file_id_format, $f->file_id), 'text'=>$filesel?('<a href="javascript:'.sprintf($onselect,$f->file_id,str_replace('\'','\\\'',htmlspecialchars(stripslashes($f->file_display_name)))).'">'.esc_html($f->GetTitle(24)).'</a> <span style="font-size:75%;vertical-align:top;">'.esc_html($f->file_name).'</span>'):$f->GenTpl($file_tpl, 'ajax'), 'classes'=>$filesel?'file':null);
+				$file_items[$i++] = array('id'=>sprintf($file_id_format, $f->file_id), 'text'=>$filesel?('<a href="javascript:'.sprintf($onselect,$f->file_id,str_replace('\'','\\\'',htmlspecialchars(stripslashes($f->file_display_name)))).'">'.esc_html($f->GetTitle(24)).'</a> <span style="font-size:75%;vertical-align:top;">'.esc_html($f->file_name).'</span>'):$f->GenTpl2('filebrowser', false), 'classes'=>$filesel?'file':null);
 		}
 		
-		wpfb_print_json($children);
+		wpfb_print_json($files_before_cats ? array_merge($file_items, $cat_items) : array_merge($cat_items, $file_items));
 		exit;
 	
 	case 'delete':
@@ -137,7 +136,8 @@ switch ( $action = $_REQUEST['action'] ) {
 			$item = $cat;
 		elseif(!empty($_POST['type']) && $_POST['type'] == 'list')
 		{
-			$tpl = new WPFB_ListTpl('sample', $_REQUEST);
+			wpfb_loadclass('ListTpl');
+			$tpl = new WPFB_ListTpl('sample', $_REQUEST['tpl']);
 			echo $tpl->Sample($cat, $file);
 			exit;
 		}
@@ -268,4 +268,5 @@ switch ( $action = $_REQUEST['action'] ) {
 		}
 		wpfb_print_json($props);
 		exit;
+		
 }

@@ -239,6 +239,8 @@ function GetFileType($name)
 		case 'onepkg':	return 'application/onenote';
 		case 'thmx':	return 'application/vnd.ms-officetheme';
 		
+		case 'notebook':	return 'application/notebook';
+		
 		default:		return 'application/octet-stream';
 	}
 }
@@ -442,7 +444,8 @@ function SendFile($file_path, $args=array())
 	if(!empty($http_range))
 		header("Content-Range: bytes " . $begin . "-" . ($end-1) . "/" . $size);
 	
-	@session_destroy();
+	if(WPFB_Core::GetOpt('dl_destroy_session'))
+		@session_destroy();
 	
 	// send the file!
 	

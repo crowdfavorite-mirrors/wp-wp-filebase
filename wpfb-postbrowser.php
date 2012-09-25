@@ -1,12 +1,12 @@
 <?php
 require_once(dirname(__FILE__).'/../../../wp-load.php');
-if(!current_user_can('read_private_posts'))
+if(!current_user_can('edit_posts'))
 	wp_die(__('Cheatin&#8217; uh?'));
 ?>
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
 <html xmlns="http://www.w3.org/1999/xhtml" <?php do_action('admin_xml_ns'); ?> <?php language_attributes(); ?>>
 <head>
-<title><?php _e('Posts') ?></title>
+<title><?php _e('Posts'); ?></title>
 <meta http-equiv="Content-Type" content="<?php bloginfo('html_type'); ?>; charset=<?php echo get_option('blog_charset'); ?>" />
 <?php
 wp_enqueue_script('jquery');
@@ -63,7 +63,7 @@ function browserAjaxComplete(jqXHR, textStatus)
 </head>
 <body>
 <div style="margin: 10px">
-<div id="wphead"><h1><?php _e('Posts') ?></h1></div>
+<div id="wphead"><h1><?php _e('Posts'); ?></h1></div>
 	<ul id="wpfilebase-post-browser" class="filetree">		
 	</ul>
 </div>

@@ -53,9 +53,12 @@ static function Display()
 						break;
 						
 					case 'roles':
-						foreach(array_keys($post[$opt_tag]) as $i) {
-							if(empty($post[$opt_tag][$i])) unset($post[$opt_tag][$i]);
-						}
+						$post[$opt_tag] = array_values(array_filter($post[$opt_tag]));
+						break;
+					
+					case 'cat':
+						$post[$opt_tag] = (empty($post[$opt_tag]) || is_null($cat = WPFB_Category::GetCat($post[$opt_tag]))) ? 0 : intval($post[$opt_tag]);
+						break;
 				}						
 			}
 		}
@@ -139,7 +142,7 @@ static function Display()
 		$messages[] = __('WARNING: Script upload enabled!', WPFB);
 		
 	$upload_path = WPFB_Core::GetOpt('upload_path');
-	if(path_is_absolute($upload_path))
+	if(!empty($old_options) && path_is_absolute($upload_path) && !path_is_absolute($old_options['upload_path']))
 	{
 		$rel_path  = str_replace('\\','/',$upload_path);
 		$rel_path = substr($rel_path, strpos($rel_path, '/')+1);
@@ -195,11 +198,12 @@ jQuery(document).ready( function() {
 	$option_categories = array(
 		__('Common', WPFB)					=> array('upload_path','search_integration' /*'cat_drop_down'*/),
 		__('Display', WPFB)					=> array('file_date_format','thumbnail_size','auto_attach_files', 'attach_loop','attach_pos', 'filelist_sorting', 'filelist_sorting_dir', 'filelist_num', /* TODO: remove? 'parse_tags_rss',*/ 'decimal_size_format'),
-		__('File Browser',WPFB)				=> array('file_browser_post_id','file_browser_cat_sort_by','file_browser_cat_sort_dir','file_browser_file_sort_by','file_browser_file_sort_dir','late_script_loading','disable_footer_credits','footer_credits_style'),
-		__('Download', WPFB)				=> array('disable_permalinks', 'download_base', 'force_download', 'range_download', 'http_nocache', 'ignore_admin_dls', 'accept_empty_referers','allowed_referers'),
-		__('Form Presets', WPFB)			=> array('default_author','default_roles', 'languages', 'platforms', 'licenses', 'requirements', 'custom_fields'),
+		__('File Browser',WPFB)				=> array('file_browser_post_id','file_browser_cat_sort_by','file_browser_cat_sort_dir','file_browser_file_sort_by','file_browser_file_sort_dir','file_browser_fbc', 'late_script_loading','disable_footer_credits','footer_credits_style'),
+		__('Download', WPFB)				=> array(
+												'disable_permalinks', 'download_base', 'force_download', 'range_download', 'http_nocache', 'ignore_admin_dls', 'accept_empty_referers','allowed_referers','dl_destroy_session'),
+		__('Form Presets', WPFB)			=> array('default_author','default_roles', 'default_cat', 'languages', 'platforms', 'licenses', 'requirements', 'custom_fields'),
 		__('Limits', WPFB)					=> array('bitrate_unregistered', 'bitrate_registered', 'traffic_day', 'traffic_month', 'traffic_exceeded_msg', 'file_offline_msg', 'daily_user_limits', 'daily_limit_subscriber', 'daily_limit_contributor', 'daily_limit_author', 'daily_limit_editor', 'daily_limit_exceeded_msg'),
-		__('Security', WPFB)				=> array('allow_srv_script_upload', 'hide_inaccessible', 'inaccessible_msg', 'inaccessible_redirect', 'login_redirect_src', 'protect_upload_path', 'private_files'),
+		__('Security', WPFB)				=> array('allow_srv_script_upload', 'frontend_upload', 'hide_inaccessible', 'inaccessible_msg', 'inaccessible_redirect', 'login_redirect_src', 'protect_upload_path', 'private_files'),
 		__('Templates and Scripts', WPFB)	=> array('template_file', 'template_cat', 'dlclick_js'),
 		__('Misc')							=> $misc_tags,
 	);
@@ -270,6 +274,13 @@ jQuery(document).ready( function() {
 					
 				case 'roles':
 					WPFB_Admin::RolesCheckList($opt_tag, $opt_val);
+					break;
+					
+				case 'cat':
+					echo "<select name='$opt_tag' id='$opt_tag'>";
+					echo WPFB_Output::CatSelTree(array('selected'=>$opt_val));
+					echo "</select>";
+					break;
 			}
 			
 			if(!empty($field_data['unit']))

@@ -125,6 +125,6 @@ static function FileSearchContent(&$ref_content)
 {
 	$files = WPFB_File::GetFiles2(self::SearchWhereSql(WPFB_Core::GetOpt('search_id3'), stripslashes($_GET['wpfb_s'])), WPFB_Core::GetOpt('hide_inaccessible'));	
 	foreach($files as $file)
-		$ref_content .= $file->GenTpl();
+		$ref_content .= $file->GenTpl2();
 }
 }

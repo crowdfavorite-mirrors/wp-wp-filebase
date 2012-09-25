@@ -6,6 +6,7 @@ static function InitClass() {
 	register_widget('WPFB_AddCategoryWidget');
 	register_widget('WPFB_SearchWidget');
 	register_widget('WPFB_CatListWidget');
+	register_widget('WPFB_FileListWidget');
 }
 
 function FileList($args)
@@ -15,6 +16,11 @@ function FileList($args)
 	extract($args);
 	
 	$options = &WPFB_Core::GetOpt('widget');
+	if(!isset($options['filelist_order_by'])){
+		if(current_user_can('edit_posts'))
+			echo $before_widget.$before_title . "WP-Filebase Widget" . $after_title."This File List widget is deprecated! Please remove this widget and add the new one.".$after_widget;
+		return;
+	}
 	
 	if(empty($options['filelist_title'])) $options['filelist_title'] = __('Files', WPFB);
 
@@ -59,6 +65,7 @@ function FileList($args)
 
 function FileListCntrl()
 {
+	echo "DEPRECATED! Use other widget instead!";
 	wpfb_loadclass('File', 'Category', 'Output', 'Admin');
 	
 	$options = WPFB_Core::GetOpt('widget');
@@ -120,67 +127,6 @@ function FileListCntrl()
 	</div>
 	<?php
 }
-
-function CatList($args)
-{
-	// if no filebrowser this widget doosnt work
-	if(WPFB_Core::GetOpt('file_browser_post_id') <= 0)
-		return;
-		
-	wpfb_loadclass('Category', 'Output');
-	
-	extract($args);
-	
-	$options = &WPFB_Core::GetOpt('widget');
-
-	echo $before_widget;
-	echo $before_title , (empty($options['catlist_title']) ? __('File Categories', WPFB) : $options['catlist_title']), $after_title;
-	
-	if(current_user_can('upload_files')) {
-		echo '<p>This widget is deprecated! Please use the new <a href="'.admin_url('widgets.php').'">WP-Filebase Category List Widget</a>.</p>';
-	}
-	
-	$tree = !empty($options['catlist_hierarchical']);
-	
-	// load all categories
-	WPFB_Category::GetCats();
-	
-	$cats = WPFB_Category::GetCats(($tree ? 'WHERE cat_parent = 0 ' : '') . 'ORDER BY cat_name ASC' /* . $options['catlist_order_by'] . ($options['catlist_asc'] ? ' ASC' : ' DESC') /*. ' LIMIT ' . (int)$options['catlist_limit']*/);
-	
-	echo '<ul>';
-	foreach($cats as $cat){
-		if($cat->CurUserCanAccess(true))
-		{
-			if($tree)
-				self::CatTree($cat);
-			else
-				echo '<li><a href="'.$cat->GetUrl().'">'.esc_html($cat->cat_name).'</a></li>';
-		}
-	}
-	echo '</ul>';
-	echo $after_widget;
-}
-
-function CatTree(&$root_cat)
-{
-	echo '<li><a href="'.$root_cat->GetUrl().'">'.esc_html($root_cat->cat_name).'</a>';
-	
-	$childs =& $root_cat->GetChildCats();
-	if(count($childs) > 0)
-	{
-		echo '<ul>';
-		foreach(array_keys($childs) as $i) self::CatTree($childs[$i]);
-		echo '</ul>';
-	}
-	
-	echo '</li>';
-}
-
-// DEPRECATED TODO remove
-function CatListCntrl()
-{
-	echo "DEPRECATED";
-}
 }
 
 class WPFB_UploadWidget extends WP_Widget {
@@ -190,7 +136,7 @@ class WPFB_UploadWidget extends WP_Widget {
 	}
 
 	function widget( $args, $instance ) {			
-		if(!current_user_can('upload_files'))
+		if(!WPFB_Core::GetOpt('frontend_upload'))
 			return;
 
 		wpfb_loadclass('File', 'Category', 'Output');
@@ -219,6 +165,10 @@ class WPFB_UploadWidget extends WP_Widget {
 	}
 	
 	function form( $instance ) {
+		if(!WPFB_Core::GetOpt('frontend_upload')) {
+			_e('Frontend upload is disabled in security settings!', WPFB);
+			return;
+		}
 		wpfb_loadclass('File', 'Category', 'Output');
 		if(!isset($instance['title'])) $instance['title'] = __('Upload File',WPFB);
 		?><div>
@@ -287,7 +237,6 @@ class WPFB_AddCategoryWidget extends WP_Widget {
 	}
 }
 
-
 class WPFB_SearchWidget extends WP_Widget {
 
 	function WPFB_SearchWidget() {
@@ -331,7 +280,6 @@ class WPFB_SearchWidget extends WP_Widget {
 		</div><?php
 	}
 }
-
 
 class WPFB_CatListWidget extends WP_Widget {
 
@@ -430,6 +378,115 @@ class WPFB_CatListWidget extends WP_Widget {
 		<p><label for="wpfilebase-catlist-limit"><?php _e('Limit:', WPFB); ?>
 			<input type="text" id="wpfilebase-catlist-limit" name="wpfilebase-catlist-limit" size="4" maxlength="3" value="<?php echo $options['catlist_limit']; ?>" />
 		</label></p> -->
+	</div>
+	<?php
+	}
+}
+
+class WPFB_FileListWidget extends WP_Widget {
+
+	function WPFB_FileListWidget() {
+		parent::WP_Widget( false, WPFB_PLUGIN_NAME .' '.__('File list', WPFB), array('description' => __('Listing of files with custom sorting', WPFB)) );
+	}
+
+	function widget( $args, $instance ) {
+		wpfb_loadclass('File', 'Category', 'Output');
+		
+        extract( $args );
+        $title = apply_filters('widget_title', $instance['title']);		
+		echo $before_widget, $before_title . (empty($title) ? __('Files',WPFB) : $title) . $after_title;
+	
+	
+		// load all categories
+		//WPFB_Category::GetCats();
+		
+		$files = WPFB_File::GetFiles2(
+			!empty($instance['cat']) ?  array('file_category'=>(int)$instance['cat']) : null,
+			WPFB_Core::GetOpt('hide_inaccessible'),
+			array($instance['sort-by'] => ($instance['sort-asc'] ? 'ASC' : 'DESC')),
+		 	(int)$instance['limit']
+		);
+		
+		$tpl_func = WPFB_Core::CreateTplFunc($instance['tpl_parsed']);
+		echo '<ul>';
+		foreach($files as $file){
+			echo '<li>',($tpl_func($file)),'</li>';
+		}
+		echo '</ul>';
+		echo $after_widget;
+	}
+	
+
+	function update( $new_instance, $old_instance ) {
+		wpfb_loadclass('Admin','TplLib', 'Output');
+		
+		$instance = $old_instance;
+		$instance['title'] = strip_tags($new_instance['title']);
+		$instance['cat'] = max(0, intval($new_instance['cat']));
+		$instance['limit'] = max(1, intval($new_instance['limit']));
+		$instance['sort-by'] = strip_tags($new_instance['sort-by']);
+		if(!in_array($instance['sort-by'], array_keys(WPFB_Admin::FileSortFields())))
+			$instance['sort-by'] = 'cat_name';
+		$instance['sort-asc'] = !empty($new_instance['sort-asc']);
+		$instance['tpl_parsed'] = WPFB_TplLib::Parse($instance['tpl'] = $new_instance['tpl']);
+		
+        return $instance;
+	}
+	
+	function form( $instance ) {
+		
+		$defaults = array(
+			'title' => 'Top Downloads',
+			'sort-by' => 'file_hits',
+			'sort-asc' => false,
+			'limit' => 10,
+			'tpl' => '<a href="%file_post_url%">%file_display_name%</a> (%file_hits%)'
+		);
+		
+		foreach($defaults as $prop => $val)
+			if(!isset($instance[$prop])) $instance[$prop] = $val;
+		
+		wpfb_loadclass('Admin','Output');
+	?>
+	<div>
+		<p><label for="<?php echo $this->get_field_id('title'); ?>"><?php _e('Title:'); ?>
+			<input type="text" id="<?php echo $this->get_field_id('title'); ?>" name="<?php echo $this->get_field_name('title'); ?>" value="<?php echo esc_attr($instance['title']); ?>" /></label>
+		</p>
+		
+		<p><label for="<?php echo $this->get_field_id('cat'); ?>"><?php _e('Category:', WPFB); ?>
+			<select name="<?php echo $this->get_field_name('cat'); ?>" id="<?php echo $this->get_field_id('cat'); ?>">
+			<?php echo WPFB_Output::CatSelTree(array('selected'=>empty($instance['cat']) ? 0 : $instance['cat'], 'none_label'=>__('All'))) ?>
+			</select></label>
+		</p>
+		<!-- 
+		<p><input type="checkbox" id="<?php echo $this->get_field_id('hierarchical'); ?>" name="<?php echo $this->get_field_name('hierarchical'); ?>" value="1" <?php checked($instance['hierarchical']); ?> />
+		<label for="<?php echo $this->get_field_id('hierarchical'); ?>"><?php _e( 'Show hierarchy' ); ?></label>
+		</p>
+		 -->
+		
+		<p>
+			<label for="<?php echo $this->get_field_id('sort-by'); ?>"><?php _e('Sort by:'/*def*/); ?></label>
+			<select id="<?php echo $this->get_field_id('sort-by'); ?>" name="<?php echo $this->get_field_name('sort-by'); ?>">
+			<?php
+				$sort_vars = WPFB_Admin::FileSortFields();
+				foreach($sort_vars as $tag => $name)
+				{
+					echo '<option value="' . esc_attr($tag) . '" title="' . esc_attr($name) . '"' . ( ($instance['sort-by'] == $tag) ? ' selected="selected"' : '' ) . '>' .$tag.'</option>';
+				}
+			?>
+			</select><br />
+			<label for="<?php echo $this->get_field_id('sort-asc0'); ?>"><input type="radio" name="<?php echo $this->get_field_name('sort-asc'); ?>" id="<?php echo $this->get_field_id('sort-asc0'); ?>" value="0"<?php checked($instance['sort-asc'], false) ?>/><?php _e('Descending'); ?></label>
+			<label for="<?php echo $this->get_field_id('sort-asc1'); ?>"><input type="radio" name="<?php echo $this->get_field_name('sort-asc'); ?>" id="<?php echo $this->get_field_id('sort-asc1'); ?>" value="1"<?php checked($instance['sort-asc'], true) ?>/><?php _e('Ascending'); ?></label>
+		</p>
+		
+		<p><label for="<?php echo $this->get_field_id('limit'); ?>"><?php _e('Limit:', WPFB); ?>
+			<input type="text" id="<?php echo $this->get_field_id('limit'); ?>" name="<?php echo $this->get_field_name('limit'); ?>" value="<?php echo intval($instance['limit']); ?>" size="4" maxlength="3" /></label>
+		</p>
+		
+		<p><label for="<?php echo $this->get_field_id('tpl'); ?>"><?php _e('Template:', WPFB); ?>
+			<input class="widefat" type="text" id="<?php echo $this->get_field_id('id'); ?>" name="<?php echo $this->get_field_name('tpl'); ?>" value="<?php echo esc_attr($instance['tpl']); ?>" /></label>
+			<br /><?php	echo WPFB_Admin::TplFieldsSelect($this->get_field_id('id'), true); ?>
+		</p>
 	</div>
 	<?php
 	}

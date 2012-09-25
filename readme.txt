@@ -3,8 +3,8 @@ Contributors: fabifott
 Donate link: https://www.paypal.com/cgi-bin/webscr?cmd=_donations&business=wpfilebase%40fabi%2eme&item_name=WP-Filebase&no_shipping=0&no_note=1&tax=0&currency_code=USD&lc=US&bn=PP%2dDonationsBF&charset=UTF%2d8
 Tags: filebase, filemanager, file, files, manager, upload, download, downloads, downloadmanager, traffic, widget, filelist, list, thumb, thumbnail, attachment, attachments, category, categories, media, template, ftp, http, mp3, id3
 Requires at least: 3.1
-Tested up to: 3.4.1
-Stable tag: 0.2.9.18
+Tested up to: 3.4.2
+Stable tag: 0.2.9.23
 
 Adds a powerful download manager supporting file categories, downloads counter, widgets, sorted file lists and more to your WordPress blog.
 
@@ -26,14 +26,16 @@ With WP-Filebase you can...
 Some more features:
 
 *	Category / child category / file taxonomy
-*	Automatic thumbnail
+*	Automatic thumbnails
 *	Built-in download counter
+*	Drag and Drop file upload
 *	File List Widget
 *	Ajax file tree browser
 *	Reads ID3 Tags and other file info of the most common file types (JPEG, videos etc...)
 *	Customizable template system
 *	Insert flexible shortcodes with the Visual Editor Plugin
 *	Sortable paginated file lists
+*	Supports [DataTables](http://datatables.net/) 
 *	Associate files to posts and automatically attach them to the content
 *	User Role access restrictions, limit file access to certain user roles 
 *	Upload files in your browser, with FTP or from URL (sideloading)
@@ -52,8 +54,6 @@ For support, please [leave a message on my blog](http://fabi.me/wordpress-plugin
 
 **Note when updating to 0.2.1:** Since 0.2.1 WP-Filebase uses a different shortcode format. Old tags can be easily converted with the built-in converter. Please backup your database and run the converter right after the update. You should also run a filebase sync!
 **Important:** Don't upgrade to 0.2.1 if you are still running old PHP 4! WP-Filebase 0.2.1 only runs on PHP 5 and later!
-
-**Note:** If you only want to limit traffic or bandwidth of media files you should take a look at my [Traffic Limiter Plugin](http://wordpress.org/extend/plugins/traffic-limiter/ "Traffic Limiter").
 
 == Installation ==
 
@@ -94,13 +94,59 @@ WP-Filebase uses WordPress' default file type icons in `wp-includes/images/cryst
 Goto WP-Filebase Settings and disable Permalinks under "Download". Try to disable other plugins. Disable WP_CACHE. Enable WP_DEBUG to get more info about possible errors.
 
 == Screenshots ==
-
-1. Example of an embedded download box with the default template
-2. The WP-Filebase Widgets
-3. AJAX file tree view
+1. The form to upload files
+2. AJAX file tree view
+3. Example of an embedded download box with the default template
 4. The Editor Button to insert tags for filelists and download urls
+5. The Editor Plugin to create shortcodes for files, categories and lists
+6. The WP-Filebase Widgets
+
 
 == Changelog ==
+
+= 0.2.9.23 =
+* Configuration of old File Widget will be retained on update. Please change to the new multi-instance widget after updating!
+
+= 0.2.9.22 =
+* Multi instance File List Widget (old one is deprecated!)
+* DataTable List template is automatically added
+* New Template `Download-button`
+* Fixed missing argument warning for `TitleFilter`
+* Fixed Post Browser permission (now usable by Authors & Contributors)
+
+= 0.2.9.21 =
+* Improved template engine performance
+* New option `Destroy session when downloading`
+* jQuery [DataTables](http://datatables.net/) included. See the default data table template (you have to reset to default templates)
+* New default template for DataTables
+* Extended upload form in Editor Plugin
+* Fixed widget upload permissions
+* Fixed using file extensions as thumbnail extensions (petebocken)
+* Fixed category sorting in multi categories lists
+* Fixed display of attachments in post lists  (njsitebuilder)
+* Fixed filemtime error when adding URLs (altafali)
+* Fixed default permissions settings
+* Fixed AJAX response issue that broke the file browser on some servers
+* Added mimetype `application/notebook`
+* Changed wp-load in Editor Plugin (might fix blank screen) 
+
+= 0.2.9.19 =
+* Upload widget can be used by guests now!
+* New Option: `Frontend upload` controls the upload widget access
+* New Option File Browser option: `Files before Categories`
+* New Option: `Default Category`
+* Sync code re-written
+* Improved sync performance and stability by using external md5 program if available
+* Editor Plugin: Selected Text is used for file links
+* Memory usage on activation is limited now
+* Fixed file renaming when uploading an update with same name
+* Fixed escaping of apostrophes in file names
+* Fixed sync progress bar
+* Fixed multi inclusion of BMP thumbnail class that could break syncing
+* Fixed live preview of list templates
+* Fixed French translation by Marco Siviero
+* Made some string localizable
+* Removed deprecated category widget
 
 = 0.2.9.18 =
 * Added Category Sorting for file lists
@@ -483,3 +529,6 @@ If you want to translate WP-Filebase in your language, open `wp-filebase/languag
 
 == Plugin Developers ==
 WP-Filebase currently offers the action `wpfilebase_sync`. This will run a fast filebase sync that adds new files.
+
+== Traffic Limiter ==
+If you only want to limit traffic or bandwidth of media files you should take a look at my [Traffic Limiter Plugin](http://wordpress.org/extend/plugins/traffic-limiter/ "Traffic Limiter").

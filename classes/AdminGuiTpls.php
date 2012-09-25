@@ -3,7 +3,7 @@ class WPFB_AdminGuiTpls {
 	
 static $sample_file = null;
 static $sample_cat = null;
-static $protected_tags = array('default','single','excerpt');
+static $protected_tags = array('default','single','excerpt','filebrowser','filepage');
 
 static function InitClass() {
 	global $user_identity, $current_user;
@@ -49,8 +49,8 @@ static function Display()
 	
 	if($action == 'add' || $action == 'update')
 	{
-		if(empty($_POST['type'])) wp_die('Type missing!');		
-		if(empty($_POST['tpltag'])) wp_die('Please enter a template tag.');	
+		if(empty($_POST['type'])) wp_die(__('Type missing!', WPFB));		
+		if(empty($_POST['tpltag'])) wp_die(__('Please enter a template tag.', WPFB));	
 		
 		$type = $_POST['type'];
 		$for_cat = ($type == 'cat');
@@ -117,8 +117,15 @@ function WPFB_GenSuccess(data, textStatus, request)
 
 function WPFB_PreviewTpl(ta, ty)
 {
-	var tplc = jQuery(ta).val();
-	var previewId = ta.id+'_preview';
+	var tplc = (ty != 'list') ? jQuery(ta).val() : {
+		header: jQuery('#tpl-list-header').val(),
+		footer: jQuery('#tpl-list-footer').val(),
+		file_tpl_tag: jQuery('#tpl-list-file-tpl').val(),
+		cat_tpl_tag: jQuery('#tpl-list-cat-tpl').val()
+	};
+	
+	var previewId = 'tplinp_'+ty+'_preview';
+	
 	jQuery.ajax({
 		type: 'POST',
 		url: '<?php echo WPFB_PLUGIN_URI.'wpfb-ajax.php' ?>',
@@ -267,7 +274,7 @@ static function TplForm($type, $tpl_tag=null)
 	$new = empty($tpl_tag);
 	$cat = ($type == 'cat');
 	$list = ($type == 'list');
-	$code_id = 'tplsrc_'.$type;
+	$code_id = 'tplinp_'.$type;
 	
 	if(!$list) {
 		if($new) {
@@ -326,15 +333,18 @@ static function TplForm($type, $tpl_tag=null)
 		<?php echo WPFB_Admin::TplFieldsSelect($code_id, false, $cat) ?>
 	</p>
 	<?php } ?>
-	
-	<div class="entry-content wpfilebase-tpl-preview">
-		<div id="<?php echo $code_id ?>_preview"><?php echo empty($tpl_code)?'<i>'.__('Preview').'</i>' : $item->GenTpl(WPFB_TplLib::Parse($tpl_code)) ?></div>
-		<div style="height: 50px; float: left;"></div>
-		<div class="clear"></div>
-	</div>
 			
 	<p class="submit"><input type="submit" name="submit" class="button-primary" value="<?php echo esc_attr__($new?'Add Template':'Submit Template Changes', WPFB) ?>" /></p>
 </form>
+
+<div class="entry-content wpfilebase-tpl-preview">
+	<div id="<?php echo $code_id ?>_preview"><?php		
+	if($list) echo $tpl->Sample(self::$sample_cat, self::$sample_file);
+	else echo empty($tpl_code)?'<i>'.__('Preview').'</i>' : $item->GenTpl(WPFB_TplLib::Parse($tpl_code), 'sample');
+	?></div>
+	<div style="height: 50px; float: left;"></div>
+	<div class="clear"></div>
+</div>
 <?php
 }
 

@@ -1,5 +1,9 @@
 <?php
+
 class WPFB_Setup {
+const MANY_FILES = 500;
+const MANY_CATEGORIES = 500;
+
 static function AddOptions()
 {
 	$default_opts = &WPFB_Admin::SettingsSchema();		
@@ -9,20 +13,10 @@ static function AddOptions()
 	foreach($default_opts as $opt_name => $opt_data)
 	{
 		$new_opts[$opt_name] = $opt_data['default'];
-	}		
-
-	$new_opts['widget'] = array(
-		'filelist_title' => 'Top Downloads',
-		'filelist_order_by' => 'file_hits',
-		'filelist_asc' => false,
-		'filelist_limit' => 10,
-		'filelist_template' => '<a href="%file_post_url%">%file_display_name%</a> (%file_hits%)',
-		'filelist_template_parsed' => '',
-		
-		'catlist_title' => __('File Categories', WPFB),
-		'catlist_hierarchical' => false
-	);
-
+	}
+	
+	$new_opts['widget'] = array(); // placeholder to keep old widget settings!
+	
 	$new_opts['version'] = WPFB_VERSION;
 	$new_opts['tag_ver'] = WPFB_TAG_VER;
 	
@@ -46,10 +40,19 @@ static function AddOptions()
 	}
 	
 	add_option(WPFB_OPT_NAME.'_ftags', array(), null, 'no'/*autoload*/); 
+	
+ 
 }
-static function AddTpls() {	
-	$tpls_file = array(
+static function AddTpls($old_ver) {	
+	$def_tpls_file = array(
 		'filebrowser' => '%file_small_icon% <a href="%file_url%" title="Download %file_display_name%">%file_display_name%</a> (%file_size%)',
+		'download-button' => '<style type="text/css" media="screen">
+	.wpfb-dlbtn div { width:250px; height:40px; margin:0; padding:0; background:transparent url(\'%wpfb_url%/images/dl_btn.png\') no-repeat top center;}
+	.wpfb-dlbtn div:hover { background-image: url(%wpfb_url%/images/dl_btn_hover.png); }
+</style>
+<div style="text-align:center; width:250px; margin: auto; font-size:smaller;"><a href="%file_url%" class="wpfb-dlbtn"><div></div></a>
+%file_display_name% (%file_size%, %file_hits% downloads)
+</div>',
 		'image_320' => '[caption id="file_%file_id%" align="alignnone" width="320" caption="<!-- IF %file_description% -->%file_description%<!-- ELSE -->%file_display_name%<!-- ENDIF -->"]<img class="size-full" title="%file_display_name%" src="%file_url%" alt="%file_display_name%" width="320" />[/caption]'."\n\n",
 		'thumbnail' => '<div class="wpfilebase-fileicon"><a href="%file_url%" title="Download %file_display_name%"><img align="middle" src="%file_icon_url%" /></a></div>'."\n",
 		'simple'	=> '<p><img src="%file_icon_url%" style="height:20px;vertical-align:middle;" /> <a href="%file_url%" title="Download %file_display_name%">%file_display_name%</a> (%file_size%)</p>',
@@ -80,19 +83,22 @@ static function AddTpls() {
   <param name='movie' value='%wpfb_url%extras/flvplayer/OSplayer.swf?movie=%file_url_encoded%&btncolor=0x333333&accentcolor=0x31b8e9&txtcolor=0xdddddd&volume=30&autoload=on&autoplay=off&vTitle=%file_display_name%&showTitle=yes'>
   <embed src='%wpfb_url%extras/flvplayer/OSplayer.swf?movie=%file_url_encoded%&btncolor=0x333333&accentcolor=0x31b8e9&txtcolor=0xdddddd&volume=30&autoload=on&autoplay=off&vTitle=%file_display_name%&showTitle=yes' width='%file_info/video/resolution_x%' height='%file_info/video/resolution_y%' allowFullScreen='true' type='application/x-shockwave-flash' allowScriptAccess='always'>
  </object>",
+	
+	'data-table' => '<tr><td><a href="%file_url%">%file_display_name%</a></td><td>%file_size%</td><td>%file_hits%</td></tr>',
 	);
 	
-	$tpls_cat = array(
+	$def_tpls_cat = array(
 		'filebrowser' => '%cat_small_icon% <a href="%cat_url%" onclick="return false;">%cat_name%</a>',
 		'3-col-row' => '<tr><td colspan="3" style="text-align:center;font-size:120%;">%cat_name%</td></tr>',
+		'data-table' => '<!-- EMPTY: categories should not be listed in DataTables -->',
 	);
 	
-	add_option(WPFB_OPT_NAME.'_tpls_file', $tpls_file, null, 'no'/*autoload*/); 
-	add_option(WPFB_OPT_NAME.'_tpls_cat', $tpls_cat, null, 'no'/*autoload*/);	
+	add_option(WPFB_OPT_NAME.'_tpls_file', $def_tpls_file, null, 'no'/*autoload*/); 
+	add_option(WPFB_OPT_NAME.'_tpls_cat', $def_tpls_cat, null, 'no'/*autoload*/);	
 	add_option(WPFB_OPT_NAME.'_ptpls_file', array(), null, 'no'/*autoload*/); 
 	add_option(WPFB_OPT_NAME.'_ptpls_cat', array(), null, 'no'/*autoload*/); 
 	
-	$list_tpls = array(
+	$def_tpls_list = array(
 		'default' => array(
 			'header' => '',
 			'footer' => '',
@@ -121,8 +127,30 @@ static function AddTpls() {
 			'file_tpl_tag' => 'mp3',
 			'cat_tpl_tag' => 'default'
 		),
+		
+		'data-table' => array(
+			'header' =>
+'%print_script:jquery-dataTables%
+%print_style:jquery-dataTables%
+<table id="wpfb-data-table-%uid%">
+<thead>
+	<tr><th scope="col">Name</th><th scope="col">Size</th><th scope="col">Hits</th></tr>
+</thead>
+<tbody>',
+			'footer' =>
+'</tbody>
+</table>
+<script type="text/javascript" charset="utf-8">
+	jQuery(document).ready(function() {
+		jQuery(\'#wpfb-data-table-%uid%\').dataTable();
+	} );
+</script>',
+			'file_tpl_tag' => 'data-table',
+			'cat_tpl_tag' => 'data-table'
+		
+		)
 	);		
-	add_option(WPFB_OPT_NAME.'_list_tpls', $list_tpls, null, 'no'/*autoload*/); 
+	add_option(WPFB_OPT_NAME.'_list_tpls', $def_tpls_list, null, 'no'/*autoload*/); 
 		
 	// delete old (<0.2.0) tpl options and copy to new
 	$old_tpls = get_option(WPFB_OPT_NAME . '_tpls');
@@ -132,6 +160,32 @@ static function AddTpls() {
 		$file_tpls = array_merge(WPFB_Core::GetFileTpls(), $old_tpls);
 		WPFB_Core::SetFileTpls($file_tpls);
 	}
+	
+	// add protected tpls
+	$tpls_file = get_option(WPFB_OPT_NAME.'_tpls_file');
+	$tpls_cat = get_option(WPFB_OPT_NAME.'_tpls_cat');
+	$tpls_list = get_option(WPFB_OPT_NAME.'_list_tpls');
+	
+	wpfb_loadclass('AdminGuiTpls');
+	$default_templates = WPFB_AdminGuiTpls::$protected_tags;
+	
+	// add new data table template
+	if(!empty($old_ver)) {
+		if(version_compare($old_ver, '0.2.9.22') < 0) {
+			$default_templates[] = 'data-table';
+			$default_templates[] = 'download-button';
+		}
+	}
+	
+	foreach($default_templates as $pt) {
+		if(empty($tpls_file[$pt]) && !empty($def_tpls_file[$pt])) $tpls_file[$pt] = $def_tpls_file[$pt];
+		if(empty($tpls_cat[$pt]) && !empty($def_tpls_cat[$pt])) $tpls_cat[$pt] = $def_tpls_cat[$pt];
+		if(empty($tpls_list[$pt]) && !empty($def_tpls_list[$pt])) $tpls_list[$pt] = $def_tpls_list[$pt];
+	}
+	
+	update_option(WPFB_OPT_NAME.'_tpls_file', $tpls_file);
+	update_option(WPFB_OPT_NAME.'_tpls_cat', $tpls_cat);
+	update_option(WPFB_OPT_NAME.'_list_tpls', $tpls_list);
 	
 	WPFB_Admin::ParseTpls();
 }
@@ -178,6 +232,7 @@ static function SetupDBTables()
 	$tbl_cats = $wpdb->prefix . 'wpfb_cats';
 	$tbl_files = $wpdb->prefix . 'wpfb_files';
 	$tbl_files_id3 = $wpdb->prefix . 'wpfb_files_id3';
+	
 	$queries[] = "CREATE TABLE IF NOT EXISTS `$tbl_cats` (
   `cat_id` int(8) unsigned NOT NULL auto_increment,
   `cat_name` varchar(255) NOT NULL default '',
@@ -230,6 +285,7 @@ static function SetupDBTables()
   `file_rating_sum` bigint(20) unsigned NOT NULL default '0',
   `file_last_dl_ip` varchar(100) NOT NULL default '',
   `file_last_dl_time` datetime NOT NULL default '0000-00-00 00:00:00',
+  ". /*`file_meta` TEXT NULL DEFAULT NULL,*/ "
   PRIMARY KEY  (`file_id`),
   FULLTEXT KEY `FULLTEXT` (`file_description`)
 ) ENGINE=MyISAM  DEFAULT CHARSET=utf8 AUTO_INCREMENT=1";	
@@ -241,7 +297,9 @@ static function SetupDBTables()
   `keywords` TEXT NOT NULL,
   PRIMARY KEY  (`file_id`)
 ) ENGINE=MyISAM  DEFAULT CHARSET=utf8";
+
 	
+
 	// errors of queries starting with @ are supressed
 	
 	$queries[] = "@ALTER TABLE `$tbl_cats` DROP INDEX `FULLTEXT`";
@@ -291,7 +349,11 @@ static function SetupDBTables()
 	
 	// 0.2.9.12
 	$queries[] = "@ALTER TABLE `$tbl_cats` ADD `cat_order` int(8) NOT NULL default '0'  AFTER `cat_exclude_browser`";
+
+	// since 0.2.9.20
+	//$queries[] = "@ALTER TABLE `$tbl_files` ADD `file_meta` TEXT NULL DEFAULT NULL";
 	
+
 	$queries[] = "OPTIMIZE TABLE `$tbl_cats`";
 	$queries[] = "OPTIMIZE TABLE `$tbl_files`";
 
@@ -409,33 +471,6 @@ static function ContentReplaceOldTags(&$content)
 			$tag_content .= ']';
 			
 			$converted[$tag_str] = $tag_content;
-			
-
-/*
-			switch($tag[0]) {
-				case 'filelist':
-					$tag_content = wpfilebase_filelist(isset($args['cat']) ? intval($args['cat']) : -1, !empty($args['tpl']) ? $args['tpl'] : null);
-					break;
-
-				case 'file':
-					if(isset($args['file']) && is_object($file = WPFB_File::GetFile($args['file'])) && $file->CurUserCanAccess(true)) {
-						if(empty($args['tpl']))
-							$tag_content = $file->GenTpl();
-						else
-							$tag_content = $file->GenTpl(self::GetParsedTpl($args['tpl']));
-					}
-					break;
-					
-				case 'fileurl':
-					if(isset($args['file']) && is_object($file = WPFB_File::GetFile($args['file'])))
-						$tag_content = $file->GetUrl();
-					break;
-					
-				case 'attachments':
-					self::PostAttachments($tag_content, false, !empty($args['tpl']) ? $args['tpl'] : null);
-					break;
-			}
-*/
 		}
 
 		// insert the content (replace tag)
@@ -464,18 +499,26 @@ static function ProtectUploadPath()
 	return false;
 }
 
-static function OnActivateOrVerChange() {
+static function OnActivateOrVerChange($old_ver=null) {
+	wpfb_loadclass('Admin','File','Category');
 	self::SetupDBTables();
 	$old_options = get_option(WPFB_OPT_NAME);
 	self::AddOptions();
-	self::AddTpls();
+	self::AddTpls($old_ver);
 	WPFB_Admin::SettingsUpdated($old_options, get_option(WPFB_OPT_NAME));
 	self::ProtectUploadPath();
 	WPFB_Admin::FlushRewriteRules();
-	wpfb_loadclass('Sync');
-	WPFB_Sync::UpdateItemsPath();
-	if(WPFB_Category::GetNumCats() < 500) // avoid long activation time
+	
+	WPFB_Admin::WPCacheRejectUri(WPFB_Core::GetOpt('download_base') . '/', $old_options['download_base'] . '/');
+		
+	$ncats = WPFB_Category::GetNumCats();
+	$nfiles = WPFB_File::GetNumFiles();
+	
+	if($ncats < self::MANY_CATEGORIES && $nfiles < self::MANY_FILES) { // avoid long activation time
+		wpfb_loadclass('Sync');
 		WPFB_Sync::SyncCats();
+		WPFB_Sync::UpdateItemsPath();
+	}
 	
 	if (!wp_next_scheduled(WPFB.'_cron'))	
 		wp_schedule_event(time(), 'hourly', WPFB.'_cron');	

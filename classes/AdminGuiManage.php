@@ -8,7 +8,7 @@ static function Display()
 	$_POST = stripslashes_deep($_POST);
 	$_GET = stripslashes_deep($_GET);	
 	$action = (!empty($_POST['action']) ? $_POST['action'] : (!empty($_GET['action']) ? $_GET['action'] : ''));
-	$clean_uri = remove_query_arg(array('message', 'action', 'file_id', 'cat_id', 'deltpl', 'hash_sync', 'doit', 'ids', 'files', 'cats' /* , 's'*/)); // keep search keyword	
+	$clean_uri = remove_query_arg(array('message', 'action', 'file_id', 'cat_id', 'deltpl', 'hash_sync', 'doit', 'ids', 'files', 'cats', 'batch_sync' /* , 's'*/)); // keep search keyword	
 	
 	
 	// switch simple/extended form
@@ -21,7 +21,7 @@ static function Display()
 	if(!empty($_GET['wpfb-hide-how-start']))
 		update_user_option($user_ID, WPFB_OPT_NAME . '_hide_how_start', 1);		
 	$show_how_start = !(bool)get_user_option(WPFB_OPT_NAME . '_hide_how_start');	
-	
+
 	WPFB_Admin::PrintFlattrHead();
 	?>
 	<script type="text/javascript">	
@@ -45,7 +45,6 @@ static function Display()
 	
 	<?php
 
-		
 		
 	if($show_how_start)
 		wpfb_call('AdminHowToStart', 'Display');
@@ -87,7 +86,8 @@ static function Display()
 				}
 				*/
 		?>
-	<?php if(self::PluginHasBeenUsedAWhile()) { ?>		
+	<?php
+	if(self::PluginHasBeenUsedAWhile()) { ?>		
 <div id="wpfb-support-col">
 <div id="wpfb-liking-toggle"></div>
 <h3><?php _e('Like this plugin?',WPFB) ?></h3>
@@ -100,10 +100,11 @@ static function Display()
 	</div>
 </div>
 </div>
-<?php } ?>
+<?php }
+
+?>
 
 <div id="col-container">
-
 	<div id="col-right">
 		<div class="col-wrap">
 			<h3><?php _e('Traffic', WPFB); ?></h3>
@@ -163,7 +164,9 @@ static function Display()
 </div><!-- /col-container -->
 
 <h2><?php _e('Tools'); ?></h2>
-<p><a href="<?php echo add_query_arg('action', 'sync') ?>" class="button"><?php _e('Sync Filebase',WPFB)?></a> &nbsp; <?php _e('Synchronises the database with the file system. Use this to add FTP-uploaded files.',WPFB) ?></p>
+<p><a href="<?php echo add_query_arg(
+				array('action' => 'sync',
+				)); ?>" class="button"><?php _e('Sync Filebase',WPFB)?></a> &nbsp; <?php _e('Synchronises the database with the file system. Use this to add FTP-uploaded files.',WPFB) ?></p>
 <p><a href="<?php echo add_query_arg('action', 'convert-tags') ?>" class="button"><?php _e('Convert old Tags',WPFB)?></a> &nbsp; <?php printf(__('Convert tags from versions earlier than %s.',WPFB), '0.2.0') ?></p>
 <!--  <p><a href="<?php echo add_query_arg('action', 'add-urls') ?>" class="button"><?php _e('Add multiple URLs',WPFB)?></a> &nbsp; <?php _e('Add multiple remote files at once.', WPFB); ?></p>
 -->
@@ -252,51 +255,10 @@ static function Display()
 			echo '<h2>'.__('Synchronisation').'</h2>';
 			wpfb_loadclass('Sync');
 			$result = WPFB_Sync::Sync(!empty($_GET['hash_sync']), true);
-			$num_changed = $num_added = $num_errors = 0;
-			foreach($result as $tag => $group)
-			{
-				if(empty($group) || !is_array($group) || count($group) == 0)
-					continue;
-					
-				$t = str_replace('_', ' ', $tag);
-				$t{0} = strtoupper($t{0});
-				
-				if($tag == 'added')
-					$num_added += count($group);
-				elseif($tag == 'error')
-					$num_errors++;
-				elseif($tag != 'warnings')
-					$num_changed += count($group);
-				
-				echo '<h2>' . __($t) . '</h2><ul>';
-				foreach($group as $item)
-					echo '<li>' . (is_object($item) ? ('<a href="'.$item->GetEditUrl().'">'.$item->GetLocalPathRel().'</a>') : $item) . '</li>';
-				echo '</ul>';
-			}
-			
-			echo '<p>';
-			if($num_changed == 0 && $num_added == 0)
-				_e('Nothing changed!', WPFB);
+			if(!is_null($result))
+				WPFB_Sync::PrintResult($result);
 
-			if($num_changed > 0)
-				printf(__('Changed %d items.', WPFB), $num_changed);
-				
-			if($num_added > 0) {
-				echo '<br />';
-				printf(__('Added %d files.', WPFB), $num_added);
-			}
-			echo '</p>';
-			
-			if( $num_errors == 0)
-				echo '<p>' . __('Filebase successfully synced.', WPFB) . '</p>';
-				
-				// first files should be deleted, then cats!
-				if(!empty($result['missing_files'])) {
-					echo '<p>' . sprintf(__('%d Files could not be found.', WPFB), count($result['missing_files'])) . ' <a href="'.$clean_uri.'&amp;action=del&amp;files='.join(',',array_keys($result['missing_files'])).'" class="button">'.__('Remove entries from database').'</a></p>';
-				} elseif(!empty($result['missing_folders'])) {
-					echo '<p>' . sprintf(__('%d Category Folders could not be found.', WPFB), count($result['missing_folders'])) . ' <a href="'.$clean_uri.'&amp;action=del&amp;cats='.join(',',array_keys($result['missing_folders'])).'" class="button">'.__('Remove entries from database').'</a></p>';
-				}
-			
+		
 			if(empty($_GET['hash_sync']))
 				echo '<p><a href="' . add_query_arg('hash_sync',1) . '" class="button">' . __('Complete file sync', WPFB) . '</a> ' . __('Checks files for changes, so more reliable but might take much longer. Do this if you uploaded/changed files with FTP.', WPFB) . '</p>';			
 			

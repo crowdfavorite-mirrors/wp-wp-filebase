@@ -1149,3 +1149,41 @@ Category (ID %d) of file %s does not exist!
 Checking for file changes...
 
 %d Files found, %d new.
+
+Frontend upload is disabled in security settings!
+
+Enable file context menu
+
+Disable file context menu
+
+Change Order
+
+Category order
+
+None (order of IDs in shortcode)
+
+Never show this again.
+
+Keywords used for search:
+
+The following tags can be used in templates. For example, if you want to display the Artist of a MP3 File, put %s inside the template code.
+
+Please enter a template tag.
+
+'This will reset all File, Category and List Templates! Are your sure?'
+
+Secondary Categories
+
+Enable front end uploads
+
+Global option to allow file uploads from widgets and embedded file forms
+
+Frontend upload is disabled in security settings!
+
+Attachments in post lists
+
+Attach files to posts in archives, index and search result.
+
+The maximum side of the image is scaled to this value.
+
+File Date Format

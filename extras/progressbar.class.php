@@ -20,7 +20,7 @@ class progressbar
 	private static function execute_js($code, $short_tag=true)
 	{
 		$code = trim($code);
-		self::_echo($short_tag ? "<script>$code</script>" : "<script type=\"text/javascript\"><!--\n$code\n// --></script>");
+		self::_echo($short_tag ? "<script>$code</script>\n" : "<script type=\"text/javascript\"><!--\n$code\n// --></script>");
 	}
 		
 	private $id=0, $value=0, $steps=0, $width=0, $height=0, $color='', $bgcolor='', $inner_styleclass='', $outer_styleclass='', $show_digits=true;
@@ -41,6 +41,7 @@ class progressbar
 		$this->inner_styleclass = $inner_styleclass;
 		$this->outer_styleclass = $outer_styleclass;
 		$this->epsilon = $this->steps / $this->width;
+		$this->client_value = 0;
 		
 		$progress_bars++;
 	}
@@ -75,16 +76,18 @@ class progressbar
 		self::_echo("<div id=\"{$jsp}{$id}\" style=\"width:0px;{$h}background-{$cl}".($isc?" class=\"{$isc}\"":"\"")."></div>");
 		self::_echo("\n</div>");
 		self::execute_js("{$jsp}i({$this->id},{$this->value},{$this->steps},{$this->width});");
+		$this->client_value = $this->value;
 	}	
 	
 	public function set($v)
 	{
 		if($v < 0) $v = 0;
 		else if($v >= $this->steps) $v = $this->steps;
+		$this->value = $v;
 
-		if(abs($this->value - $v) > $this->epsilon || $v == $this->steps)
+		if(abs($v - $this->client_value) > $this->epsilon || $v == $this->steps)
 		{
-			$this->value = $v;
+			$this->client_value = $v;
 			self::execute_js(self::$js_prefix.'s('.$this->id.','.$v.');');
 		}
 	}

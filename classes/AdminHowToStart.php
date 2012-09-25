@@ -35,7 +35,7 @@ jQuery(document).ready(function(){
 			<li><?php printf(__('<a href="%s">Manage the Templates</a> (for advanced users): You can modify any file- or category template to fit your Wordpress theme.', WPFB), esc_attr(admin_url('admin.php?page=wpfilebase_tpls'))); ?></li>
 		</ul>
 		<?php if(!get_user_option(WPFB_OPT_NAME . '_hide_how_start')) {?>
-		<p style="text-align: right"><a href="<?php echo esc_attr(add_query_arg('wpfb-hide-how-start', '1')) ?>"><?php _e('Never show this again.') ?></a></p>
+		<p style="text-align: right"><a href="<?php echo esc_attr(add_query_arg('wpfb-hide-how-start', '1')) ?>"><?php _e('Never show this again.',WPFB) ?></a></p>
 		<?php } ?>
 	</div>
 </div>

@@ -3,7 +3,7 @@ wpfb_loadclass('Item');
 
 class WPFB_File extends WPFB_Item {
 	
-	static $thumbnail_regex = '/^-([0-9]+)x([0-9]+)\.(jpg|jpeg|png|gif)$/i';
+	const THUMB_REGEX = '/^-([0-9]+)x([0-9]+)\.(jpg|jpeg|png|gif)$/i';
 
 	var $file_id = 0;
 	var $file_name;
@@ -39,6 +39,8 @@ class WPFB_File extends WPFB_Item {
 	var $file_rating_sum = 0; // TODO
 	var $file_last_dl_ip;
 	var $file_last_dl_time;
+	
+	//var $file_meta;
 	
 	static $cache = array();
 	//static $cache_complete = false;
@@ -200,7 +202,6 @@ class WPFB_File extends WPFB_Item {
 		$this->file_force_download = (int)!empty($this->file_force_download);
 		if(empty($this->file_last_dl_time)) $this->file_last_dl_time = '0000-00-00 00:00:00';
 		$r = parent::DBSave();
-		//$this->UpdateWPAttachment();
 		return $r;
 	}
 	
@@ -262,8 +263,8 @@ class WPFB_File extends WPFB_Item {
 		if($ext == 'bmp') {			
 			if(@file_exists($extras_dir . 'phpthumb.functions.php') && @file_exists($extras_dir . 'phpthumb.bmp.php'))
 			{
-				@include($extras_dir . 'phpthumb.functions.php');
-				@include($extras_dir . 'phpthumb.bmp.php');
+				@include_once($extras_dir . 'phpthumb.functions.php');
+				@include_once($extras_dir . 'phpthumb.bmp.php');
 				
 				if(class_exists('phpthumb_functions') && class_exists('phpthumb_bmp'))
 				{
@@ -285,7 +286,7 @@ class WPFB_File extends WPFB_Item {
 			$thumb = @wp_create_thumbnail($src_image, $thumb_size);
 			if(is_wp_error($thumb) && max($src_size) <= $thumb_size) { // error occurs when image is smaller than thumb_size. in this case, just copy original
 				$name = wp_basename($src_image, ".$ext");
-				$thumb = dirname($src_image)."/{$name}-{$src_size[0]}x{$src_size[1]}.{$ext}";
+				$thumb = dirname($src_image)."/{$name}-{$src_size[0]}x{$src_size[1]}.".strtolower(strrchr($src_image, '.'));
 				copy($src_image, $thumb);
 			}
 		}
@@ -355,10 +356,7 @@ class WPFB_File extends WPFB_Item {
 		
 		$wpdb->query("DELETE FROM $wpdb->wpfilebase_files_id3 WHERE file_id = " . (int)$this->file_id);
 		
-		// delete WP attachment entry
-		$wpa_id = (int)$this->file_wpattach_id;
-		if($wpa_id > 0 && $wpdb->get_var( $wpdb->prepare("SELECT ID FROM $wpdb->posts WHERE ID = %d AND post_type = 'attachment' AND post_status IN ('private', 'publish')", $wpa_id)))
-			wp_delete_attachment($wpa_id, true);
+		
 			
 		if(!$bulk)
 			self::UpdateTags();			
@@ -598,185 +596,14 @@ class WPFB_File extends WPFB_Item {
 		update_option(WPFB_OPT_NAME.'_ftags', $tags);
 	}
 	
+	
+	
 	function GetWPAttachmentID() {
 		return $this->file_wpattach_id;
 		//global $wpdb;
 		//return $wpdb->get_var( $wpdb->prepare("SELECT ID FROM $wpdb->posts WHERE guid = %s", $this->GetUrl()) );
 	}
 	
-	// TODO:
-	function UpdateWPAttachment($file_changed=false) {
-		global $wpdb;		
-		
-		return 0; // beta!!
-		/*
-		
-		if($this->locked > 0) $this->TriggerLockedError();
-		
-		$rel_path = $this->GetLocalPath();
-		
-		
-		if(!($uploads = wp_upload_dir()) || $uploads['error'] || strpos($rel_path, $uploads['basedir'].'/') === false) {
-			echo "Path error. Cannot create WP attachmet!";
-			return false;
-		}
-		
-		$rel_path = str_replace(WPFB_Core::UploadDir(), '/'.WPFB, $rel_path);
-		
-		$object = array(
-		'post_author' => $this->file_added_by,
-		'post_content' => '[wpfilebase tag=file id='.$this->GetId().' tpl=single]',
-		'post_title' => $this->GetTitle(),
-		'post_excerpt' => $this->GenTpl(WPFB_Core::GetParsedTpl('file','excerpt')),
-		'post_status' => $this->file_offline ? 'private' : 'publish',
-		'post_password' => '',
-		'post_name' => $this->GetName(),
-		'to_ping' =>  '', 'pinged' => '',
-		'post_content_filtered' => '',
-		'post_parent' => $this->file_offline ? 0 : (int)WPFB_Core::GetOpt('file_browser_post_id'), //$this->file_post_id,
-		'guid' => $this->GetUrl(),
-		'menu_order' => $this->file_attach_order,
-		'post_type' => 'attachment',
-		'post_mime_type' => 'application/octet-stream' //wpfb_call('Download', 'GetFileType', $this->file_name),
-		//'import_id' => $this->GetId()
-		);
-		
-		
-		$object = sanitize_post($object, 'db');
-		
-		// export array as variables
-		extract($object, EXTR_SKIP);
-		
-		//$post_category = array( get_option('default_category') );
-		$post_category = array();
-		
-		
-		$ID = $this->file_wpattach_id;
-		// Are we updating or creating?
-		if ( !empty($ID) ) {
-			$update = true;
-			$post_ID = (int) $ID;
-		} else {
-			$update = false;
-			$post_ID = 0;
-		}
-		
-		// Create a valid post name.
-		if ( empty($post_name) ) $post_name = sanitize_title($post_title);
-		else $post_name = sanitize_title($post_name);
-		
-		// expected_slashed ($post_name)
-		$post_name = wp_unique_post_slug($post_name, $post_ID, $post_status, $post_type, $post_parent);
-		
-		$post_modified = $post_date = gmdate('Y-m-d H:i:s', $this->GetModifiedTime());
-		$post_modified_gmt = $post_date_gmt = gmdate('Y-m-d H:i:s', $this->GetModifiedTime(true));
-	
-		
-		if ( empty($comment_status) ) {
-			if ( $update ) $comment_status = 'closed';
-			else $comment_status = get_option('default_comment_status');
-		}
-		
-		if ( empty($ping_status) ) $ping_status = get_option('default_ping_status');		
-		if ( isset($to_ping) ) $to_ping = preg_replace('|\s+|', "\n", $to_ping);
-		else $to_ping = '';
-		
-		if ( isset($post_parent) ) $post_parent = (int) $post_parent;
-		else $post_parent = 0;
-		
-		if ( isset($menu_order) ) $menu_order = (int) $menu_order;
-		else $menu_order = 0;
-		
-		if ( !isset($post_password) ) $post_password = '';
-		
-		if ( ! isset($pinged) )	$pinged = '';
-		
-		
-		// expected_slashed (everything!)
-		$data = compact( array( 'post_author', 'post_date', 'post_date_gmt', 'post_content', 'post_content_filtered', 'post_title', 'post_excerpt', 'post_status', 'post_type', 'comment_status', 'ping_status', 'post_password', 'post_name', 'to_ping', 'pinged', 'post_modified', 'post_modified_gmt', 'post_parent', 'menu_order', 'post_mime_type', 'guid' ) );
-		$data = stripslashes_deep( $data );
-		
-		if ( $update ) {
-			$wpdb->update( $wpdb->posts, $data, array( 'ID' => $post_ID ) );
-		} else {
-			// If there is a suggested ID, use it if not already present
-			if ( !empty($import_id) ) {
-				$import_id = (int) $import_id;
-				if ( ! $wpdb->get_var( $wpdb->prepare("SELECT ID FROM $wpdb->posts WHERE ID = %d", $import_id) ) ) {
-					$data['ID'] = $import_id;
-				}
-			}
-		
-			$wpdb->insert( $wpdb->posts, $data );
-			$post_ID = (int) $wpdb->insert_id;
-		}
-		
-		if ( empty($post_name) ) {
-			$post_name = sanitize_title($post_title, $post_ID);
-			$wpdb->update( $wpdb->posts, compact("post_name"), array( 'ID' => $post_ID ) );
-		}
-		
-		wp_set_post_categories($post_ID, $post_category);
-		
-		update_post_meta($post_ID, '_wp_attached_file',  $rel_path);
-		
-		clean_post_cache($post_ID);
-		
-		if ( isset($post_parent) && $post_parent < 0 )
-		add_post_meta($post_ID, '_wp_attachment_temp_parent', $post_parent, true);
-		
-		if ( ! empty( $context ) )
-		add_post_meta( $post_ID, '_wp_attachment_context', $context, true );
-		
-		if ( $update) {
-			do_action('edit_attachment', $post_ID);
-		} else {
-			do_action('add_attachment', $post_ID);
-		}
-		
-		if(!$update || $file_changed || true) {
-			$metadata = array();
-			$w = (int)$this->getInfoValue(array('video','resolution_x'));
-			if($w > 0) {
-				$metadata['width'] = $w;
-				$metadata['height'] = $h = (int)$this->getInfoValue(array('video','resolution_y'));
-				$metadata['file'] = ''; //$rel_path; TODO invalid, must be relative to wp-content/upload
-				// 	$metadata['hwstring_small'] = "height='$uheight' width='$uwidth'";
-				
-				if(!empty($this->file_thumbnail)) {
-					// calc thumb size
-					$max_side = max(array($w,$h));
-					$thumb_size = (int)WPFB_Core::GetOpt('thumbnail_size');
-					if($max_side > $thumb_size) {
-						$w *= $thumb_size / $max_side;
-						$h *= $thumb_size / $max_side;
-					}
-					
-					$img_sizes = array('thumbnail','medium','post-thumbnail','large-feature','small-feature');					
-					$metadata['sizes'] = array();
-					foreach($img_sizes as $is) {
-						$metadata['sizes'][$is] = array(
-							'file' => $this->file_thumbnail,
-							'width' => (int)round($w),
-							'height' => (int)round($h)
-						);
-					}
-				}
-			}
-			// $metadata['file'] = _wp_relative_upload_path($file);
-			if(!empty($metadata))
-				wp_update_attachment_metadata($post_ID, $metadata);			
-		}
-		
-		if($this->file_wpattach_id != $post_ID) {
-			$this->file_wpattach_id = $post_ID;
-			if($this->locked == 0) $this->DBSave();
-		}					
-		
-		return $post_ID;
-		/**/
-	}
-
 	
 	function IsRemote() { return !empty($this->file_remote_uri); }	
 	function IsLocal() { return empty($this->file_remote_uri); }

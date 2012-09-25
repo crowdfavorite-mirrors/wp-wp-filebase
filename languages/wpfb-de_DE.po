@@ -1056,7 +1056,7 @@ msgid "For some files there are more tags available. You find a list of all tags
 msgstr "Für manche Dateien können noch mehr Tags zur Verfügung stehen. Du findest eine Liste zusätlicher Tags unter dem Formular, wenn du eine Datei bearbeitest."
 
 msgid "Reset all Templates to default"
-msgstr "Standardtemplates widerherstellen"
+msgstr "Standardtemplates wiederherstellen"
 
 msgid "These templates can be used for categories."
 msgstr "Diese Templates können für Kategorieren verwendet werden."

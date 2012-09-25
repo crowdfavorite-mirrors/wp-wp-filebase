@@ -6,7 +6,7 @@ $in_widget = !empty($in_widget);
 $in_editor = !empty($in_editor);
 
 $update = $multi_edit ? !empty($item) : (isset($item) && is_object($item) && !empty($item->file_id));
-$exform = $update || (!$in_editor && !empty($exform));
+$exform = $update || ( /*!$in_editor && */ !empty($exform));
 
 
 	
@@ -32,7 +32,12 @@ $nonce_action = WPFB."-".$action;
 if($update) $nonce_action .= ($multi_edit ? $item_ids : $file->file_id);
 if($in_editor) $nonce_action .= "-editor";
 
-$file_category = ($update || empty($_REQUEST['file_category'])) ? $file->file_category : $_REQUEST['file_category'];
+if($update)
+	$file_category = $file->file_category;
+else
+	$file_category = reset(array_filter(array(@$_REQUEST['file_category'], $file->file_category, WPFB_Core::GetOpt('default_cat')))); 
+
+//$file_category = ($update || empty($_REQUEST['file_category'])) ? $file->file_category : $_REQUEST['file_category'];
 
 $adv_uploader = (version_compare(get_bloginfo('version'), '3.2.1') <= 0) ? 'SWFUpload' : 'PLUpload';
 
@@ -42,9 +47,18 @@ $adv_uploader = (version_compare(get_bloginfo('version'), '3.2.1') <= 0) ? 'SWFU
 			
 <form enctype="multipart/form-data" name="<?php echo $action ?>" id="<?php echo $action ?>" method="post" action="<?php echo $form_url ?>" class="validate">
 
-<?php if($in_editor && !$in_widget) { ?><h3 class="media-title"><?php echo $title ?></h3>
-<?php } elseif(!$in_widget) {?><h2><?php echo $title ?> <?php if(!$in_editor && !$update) { ?><a style="font-style:normal;" href="<?php echo remove_query_arg('exform') ?>&amp;exform=<?php echo ($exform ? '0' : '1') . '#'.$action; ?>" class="add-new-h2"><?php _e($exform ? 'Simple Form' : 'Extended Form', WPFB) ?></a><?php } ?>
-</h2><?php } ?>
+<?php
+if(!$in_widget) {
+	if($in_editor) {
+		?><div style="float: right;"><a style="font-style:normal;" href="<?php echo add_query_arg('exform', ($exform ? '0' : '1')); ?>"><?php _e($exform ? 'Simple Form' : 'Extended Form', WPFB) ?></a></div><?php		
+		?><h3 class="media-title"><?php echo $title ?></h3><?php
+	} else {
+		echo "<h2>".$title;
+		?><a style="font-style:normal;" href="<?php echo add_query_arg('exform', ($exform ? '0' : '1')).'#'.$action; ?>" class="add-new-h2"><?php _e($exform ? 'Simple Form' : 'Extended Form', WPFB) ?></a><?php
+		echo "</h2>";
+	}
+}
+?>
 
 <script type="text/javascript">
 //<![CDATA[

@@ -25,7 +25,7 @@
 
 .wpfilebase-tpledit {
 	width: 98%;
-	font-size: 9px;
+	font-size: 10px;
 	font-family: Consolas, Monaco, Courier, monospace;
 }
 
@@ -232,6 +232,8 @@
 	border: 2px inset #ccf;
 	clear: both;
 	word-wrap: normal;
+	max-height: 300px;
+	overflow: auto;
 }
 
 #wpfb-support-col {

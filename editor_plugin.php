@@ -4,29 +4,33 @@ define('WPFB_EDITOR_PLUGIN', 1);
 if ( ! isset( $_GET['inline'] ) )
 	define( 'IFRAME_REQUEST' , true );
 
-//require_once(dirname(__FILE__).'/../../../wp-load.php');
-// disable error reporting
-//error_reporting(0);
-require_once(dirname(__FILE__).'/../../../wp-admin/admin.php');
-// enable error reporting again
-//wp_debug_mode();
+require_once(dirname(dirname(dirname(dirname(__FILE__)))).'/wp-load.php');
+require_once(ABSPATH . 'wp-admin/includes/admin.php');  
+
+auth_redirect(); 
+
+wpfb_loadclass('Core', 'File', 'Category', 'AdminLite', 'Admin', 'ListTpl', 'Output');
+
+wp_enqueue_script( 'common' );
+wp_enqueue_script( 'jquery-color' ); 
+wp_enqueue_script('jquery-treeview-async');
+wp_enqueue_script('postbox');
+wp_enqueue_script('wpfb-editor-plugin', WPFB_PLUGIN_URI."js/editor-plugin.js", array(), WPFB_VERSION);
+
+wp_enqueue_style( 'global' );
+wp_enqueue_style( 'wp-admin' );
+wp_enqueue_style( 'colors' );
+wp_enqueue_style( 'media' );
+wp_enqueue_style( 'ie' );
+wp_enqueue_style('jquery-treeview');
+
+do_action('admin_init');
 
 // anti hack
 if(!current_user_can('publish_posts') && !current_user_can('edit_posts') && !current_user_can('edit_pages'))
 	wp_die(__('Cheatin&#8217; uh?'));
-
-function wpfb_editor_plugin_scripts() {
-	//wp_enqueue_script('tiny-mce-popup', site_url().'/'.WPINC.'/js/tinymce/tiny_mce_popup.js');
-	wp_enqueue_script('jquery');
-	wp_enqueue_script('jquery-treeview-async');
-	wp_enqueue_script('postbox');
-	wp_enqueue_script('wpfb-editor-plugin', WPFB_PLUGIN_URI."js/editor-plugin.js", array(), WPFB_VERSION);
-}
-add_action('admin_enqueue_scripts', 'wpfb_editor_plugin_scripts');
 	
 @header('Content-Type: ' . get_option('html_type') . '; charset=' . get_option('blog_charset'));
-
-wpfb_loadclass('File', 'Category', 'Admin', 'ListTpl', 'Output');
 
 $action = empty($_REQUEST['action']) ? '' : $_REQUEST['action'];
 $post_id = empty($_REQUEST['post_id']) ? 0 : intval($_REQUEST['post_id']);
@@ -61,6 +65,7 @@ case 'change-order':
 			}
 		}
 	}
+	break;
 }
 
 $post_attachments = ($post_id > 0) ? WPFB_File::GetAttachedFiles($post_id) : array();
@@ -72,13 +77,6 @@ $post_attachments = ($post_id > 0) ? WPFB_File::GetAttachedFiles($post_id) : arr
 <title><?php echo WPFB_PLUGIN_NAME ?></title>
 
 <?php
-wp_enqueue_style( 'global' );
-wp_enqueue_style( 'wp-admin' );
-wp_enqueue_style( 'colors' );
-wp_enqueue_style( 'media' );
-wp_enqueue_style( 'ie' );
-wp_enqueue_style('jquery-treeview');
-
 do_action('admin_enqueue_scripts', 'media-upload-popup');
 do_action('admin_print_styles-media-upload-popup');
 do_action('admin_print_styles');
@@ -169,8 +167,10 @@ function selectFile(id, name)
 		el.css('background-image', 'url('+yesImgUrl+')');
 		return;
 	} else if(currentTab == 'fileurl') {
+<?php if(empty($_GET['content'])) {?>
 		var linkText = prompt("<?php echo esc_attr(__('Enter link text:', WPFB)); ?>", name);
 		if(!linkText || linkText == null || linkText == '')	return;
+<?php } else echo " var linkText = '".$_GET['content']."'; "; ?>
 		theTag.linktext = linkText;
 	} else {
 		var tpl = jQuery('input[name=filetpl]:checked', '#filetplselect').val();
@@ -189,6 +189,8 @@ function insBrowserTag()
 	return insertTag(tag);
 }
 
+<?php
+?>
 //]]>
 </script>
 
@@ -203,7 +205,8 @@ function insBrowserTag()
 		<li><a href="#fileurl" onclick="return tabclick(this)"><?php _e('File URL', WPFB) ?></a></li>
 		<li><a href="#list" onclick="return tabclick(this)"><?php _e('File list', WPFB) ?></a></li>
 		<li><a href="#browser" onclick="return tabclick(this)"><?php _e('File Tree View', WPFB) ?></a></li>
-		<!-- <li><a href="#uploadform" onclick="return tabclick(this)"><?php _e('Inline Upload Form', WPFB) ?></a></li> -->
+<?php
+?>
 	</ul>
 <?php } ?>
 </div>
@@ -262,11 +265,11 @@ if($action != 'editfile' && (!empty($post_attachments) || $manage_attachments)) 
 		</div>
 	<?php }	?>
 	</div>
-	<input type="submit" name="change-order" value="<?php _e('Change Order') ?>" />
+	<input type="submit" name="change-order" value="<?php _e('Change Order', WPFB) ?>" />
 	</form>
 	<?php
 }
-WPFB_Admin::PrintForm('file', $file, array('in_editor'=>true, 'post_id'=>$post_id));
+WPFB_Admin::PrintForm('file', $file, array('exform'=>!empty($_GET['exform']), 'in_editor'=>true, 'post_id'=>$post_id));
 ?>
 <h3 class="media-title"><?php _e('Attach existing file', WPFB) ?></h3>
 <ul id="attachbrowser" class="filetree"></ul>
@@ -326,9 +329,9 @@ WPFB_Admin::PrintForm('file', $file, array('in_editor'=>true, 'post_id'=>$post_i
 	<label for="list-show-cats"><?php _e('List selected Categories',WPFB) ?></label>
 	</p>
 	<p id="cat-sorting-wrap">
-	<label for="list-cat-sort-by"><?php _e("Category sorting:") ?></label>
+	<label for="list-cat-sort-by"><?php _e("Category order",WPFB) ?>:</label>
 	<select name="list-cat-sort-by" id="list-cat-sort-by" style="width:100%">
-		<option value=""><?php _e('None (Order of IDs in shortcode)'); ?></option>
+		<option value=""><?php _e('None (order of IDs in shortcode)', WPFB); ?></option>
 		<?php $opts = WPFB_Admin::CatSortFields();
 		foreach($opts as $tag => $name) echo '<option value="'.$tag.'">'.$tag.' - '.$name.'</option>'; ?>
 	</select>	
@@ -349,6 +352,10 @@ WPFB_Admin::PrintForm('file', $file, array('in_editor'=>true, 'post_id'=>$post_i
 	
 	<p><a class="button" style="float: right;" href="javascript:void(0)" onclick="return insBrowserTag()"><?php echo _e('Insert') ?></a></p>
 </form>
+
+
+<?php
+?>
 
 <!-- 
 <form id="uploadform">

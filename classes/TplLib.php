@@ -15,6 +15,9 @@ static function Parse($tpl)
 	// remove cat anchors
 	$tpl = str_replace('%cat_url%#wpfb-cat-%cat_id%','%cat_url%',$tpl);
 	
+	// remote slash after wpfb_url
+	$tpl = str_replace("%wpfb_url%/", "%wpfb_url%", $tpl);
+	
 	// since 0.2.0 the onclick is set via jQuery!
 	//add dl js
 	//$tpl = preg_replace('/<a ([^>]*)href="%file_url%"/i', '<a $1href="%file_url%" onclick="wpfilebase_dlclick(%file_id%, \'%file_url_rel%\')"', $tpl);
@@ -54,7 +57,7 @@ static function ParseTplExp($exp)
 	$exp = str_replace('%post_id%', 'get_the_ID()', $exp);
 	
 	// remove critical functions TODO: still a bit unsecure, only allow some functions
-	$exp = str_replace(array('eval','mysql_query', 'mysql', '$wpdb', 'fopen', 'readfile', 'include','include_once','require(','require_once('), '', $exp);
+	$exp = str_replace(array('eval','mysql_query', 'mysql', '$wpdb', 'fopen', 'readfile', 'include(','include_once','require(','require_once','file_get_contents','file_put_contents','copy(','unlink','rename('), '', $exp);
 	
 	$exp = preg_replace('/%([a-z0-9_\/]+?)%/i', '($f->get_tpl_var(\'$1\'))', $exp);
 	$exp = preg_replace('/([^\w])AND([^\w])/', '$1&&$2', $exp);
