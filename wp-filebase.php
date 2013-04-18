@@ -4,19 +4,22 @@ Plugin Name: WP-Filebase
 Plugin URI: http://fabi.me/wordpress-plugins/wp-filebase-file-download-manager/
 Description: Adds a powerful downloads manager supporting file categories, download counter, widgets, sorted file lists and more to your WordPress blog.
 Author: Fabian Schlieper
-Version: 0.2.9.23
-Author URI: http://fabi.me/
+Version: 0.2.9.35
+Author URI: http://wpfilebase.com/
 */
 
 if(!defined('WPFB'))
 {
 	define('WPFB', 'wpfb');
-	define('WPFB_VERSION', '0.2.9.23');
+	define('WPFB_VERSION', '0.2.9.35');
 	define('WPFB_PLUGIN_ROOT', str_replace('\\','/',dirname(__FILE__)).'/');
 	if(!defined('ABSPATH')) {
 		define('ABSPATH', dirname(dirname(dirname(dirname(__FILE__)))));
 	} else {
-		define('WPFB_PLUGIN_URI', str_replace(str_replace('\\','/',ABSPATH),get_option('siteurl').'/',WPFB_PLUGIN_ROOT));
+		//define('WPFB_PLUGIN_URI', plugins_url('/',__FILE__));
+		$wpfb_uri = str_replace(str_replace('\\','/',ABSPATH),get_option('siteurl').'/',WPFB_PLUGIN_ROOT);
+		if(is_ssl()) $wpfb_uri = str_replace('http://', 'https://', $wpfb_uri);
+		define('WPFB_PLUGIN_URI', $wpfb_uri);
 	}
 	if(!defined('WPFB_PERM_FILE')) define('WPFB_PERM_FILE', 666);
 	if(!defined('WPFB_PERM_DIR')) define('WPFB_PERM_DIR', 777);
@@ -26,11 +29,9 @@ if(!defined('WPFB'))
 	
 	function wpfb_loadclass($cl)
 	{
-		if(func_num_args() > 1)
-			return wpfb_loadclass(func_get_args());
-		elseif(is_array($cl)) {
-			$res = true;
-			foreach($cl as $c) $res = (wpfb_loadclass($c) && $res);
+		if(func_num_args() > 1) {
+			$args = func_get_args(); // func_get_args can't be used as func param!
+			return array_map(__FUNCTION__, $args);
 		} else {
 			$cln = 'WPFB_'.$cl;
 			
@@ -43,7 +44,6 @@ if(!defined('WPFB'))
 			{
 				echo("<p>WP-Filebase Error: Could not include class file <b>'{$cl}'</b>!</p>");
 				if(defined('WP_DEBUG') && WP_DEBUG) {
-					//echo "<p><b>Path:</b> $p<br /><b>Error:</b>".print_r(error_get_last(), true)."</p>";
 					print_r(debug_backtrace());
 				}
 			}
@@ -68,9 +68,7 @@ if(!defined('WPFB'))
 	{
 		$cln = 'WPFB_'.$cl;
 		$fnc = array($cln, $fnc);
-		if(class_exists($cln) || wpfb_loadclass($cl))
-			return $is_args_array ? call_user_func_array($fnc, $params) : call_user_func($fnc, $params);
-		return null;
+		return (class_exists($cln) || wpfb_loadclass($cl)) ? ($is_args_array ? call_user_func_array($fnc, $params) : call_user_func($fnc, $params)) : null;
 	}
 	
 	function wpfilebase_init()
@@ -84,13 +82,14 @@ if(!defined('WPFB'))
 	}
 	
 	function wpfilebase_activate() {
+		define('WPFB_SIMPLE_LOAD',true);
 		wpfb_loadclass('Core','Admin', 'Setup');
 		WPFB_Setup::OnActivateOrVerChange(WPFB_Core::GetOpt('version'));
 	}
 	
 	function wpfilebase_deactivate() {
 		wpfb_loadclass('Core','Admin','Setup');
-		WPFB_Setup::OnDeactivate();		
+		WPFB_Setup::OnDeactivate();
 	}
 	
 	// FIX: setup the OB to truncate any other output when downloading

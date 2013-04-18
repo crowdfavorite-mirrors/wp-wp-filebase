@@ -9,6 +9,8 @@ static function Parse($tpl)
 		return $tpl;
 	}
 	
+	
+	
 	// remove existing onclicks
 	$tpl = preg_replace(array('/<a\s+([^>]*)onclick=".+?"\s+([^>]*)href="%file_url%"/i', '/<a\s+([^>]*)href="%file_url%"\s+([^>]*)onclick=".+?"/i'), '<a href="%file_url%" $1$2', $tpl);
 	
@@ -38,10 +40,12 @@ static function Parse($tpl)
 	$tpl = str_replace('%wpfb_url%', '\'.(WPFB_PLUGIN_URI).\'', $tpl);
 	
 	// parse variables
-	$tpl = preg_replace('/%([a-z0-9_\/]+?)%/i', '\'.$f->get_tpl_var(\'$1\').\'', $tpl);
+	$tpl = preg_replace('/%([a-z0-9_\/:]+?)%/i', '\'.$f->get_tpl_var(\'$1\').\'', $tpl);
 	
+	// this removes JS enc. in HTML comments
 	// remove html comments
-	$tpl = preg_replace('/<\!\-\-[\s\S]+?\-\->/', '', $tpl);
+	//$tpl = preg_replace('/<\!\-\-[\s\S]+?\-\->/', '', $tpl);
+	
 	
 	$tpl = "'$tpl'";
 	
@@ -63,6 +67,10 @@ static function ParseTplExp($exp)
 	$exp = preg_replace('/([^\w])AND([^\w])/', '$1&&$2', $exp);
 	$exp = preg_replace('/([^\w])OR([^\w])/', '$1||$2', $exp);
 	$exp = preg_replace('/([^\w])NOT([^\w])/', '$1!$2', $exp);
+	
+	// unescape "
+	$exp = stripslashes($exp);
+	
 	return $exp;
 }
 
@@ -104,5 +112,6 @@ static function Check($tpl)
 	
 	return $result;
 }
+
 }
 ?>

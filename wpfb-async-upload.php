@@ -4,15 +4,36 @@
  *
  */
 
+function wpfb_on_shutdown()
+{
+	 $error = error_get_last( );
+	 if( $error && $error['type'] != E_STRICT && $error['type'] != E_NOTICE && $error['type'] != E_WARNING  ) {
+		 wpfb_ajax_die(json_encode($error));
+	 } else { return true; }
+}
+register_shutdown_function('wpfb_on_shutdown');
+
 define('TMP_FILE_MAX_AGE', 3600*3);
 
+$frontend_upload = !empty($_REQUEST['frontend_upload']) && $_REQUEST['frontend_upload'] !== "false";
+$file_add_now = !$frontend_upload && !empty($_REQUEST['file_add_now']) && $_REQUEST['file_add_now'] !== "false";
+
 ob_start();
-define('WP_ADMIN', true);
+define('WP_ADMIN', !$frontend_upload);
 
 if ( defined('ABSPATH') )
 	require_once(ABSPATH . 'wp-load.php');
 else
 	require_once(dirname(__FILE__).'/../../../wp-load.php');
+
+error_reporting(0);
+
+function wpfb_ajax_die($msg) {
+	@ob_end_clean();
+	echo '<div class="error-div">
+	<strong>' . $msg . '</strong></div>';
+	exit;	
+}
 
 // Flash often fails to send cookies with the POST or upload, so we need to pass it in GET or POST instead
 if ( is_ssl() && empty($_COOKIE[SECURE_AUTH_COOKIE]) && !empty($_REQUEST['auth_cookie']) )
@@ -23,8 +44,9 @@ if ( empty($_COOKIE[LOGGED_IN_COOKIE]) && !empty($_REQUEST['logged_in_cookie']) 
 	$_COOKIE[LOGGED_IN_COOKIE] = $_REQUEST['logged_in_cookie'];
 unset($current_user);
 
-require_once(ABSPATH.'wp-admin/admin.php');
-ob_end_clean();
+if(!$frontend_upload)
+	require_once(ABSPATH.'wp-admin/admin.php');
+@ob_end_clean();
 
 if(!WP_DEBUG) {
 	send_nosniff_header();
@@ -32,10 +54,17 @@ if(!WP_DEBUG) {
 }
 @header('Content-Type: text/plain; charset=' . get_option('blog_charset'));
 
-if ( !current_user_can('upload_files') )
-	wp_die(__('You do not have permission to upload files.'));
-	
-check_admin_referer(WPFB.'-async-upload');	
+
+if($frontend_upload) {
+	if(!WPFB_Core::GetOpt('frontend_upload') && !current_user_can('upload_files'))
+		wpfb_ajax_die(__('You do not have permission to upload files.'));
+} else {
+	wpfb_loadclass('Admin');
+	if ( !WPFB_Admin::CurUserCanUpload()  )
+		wpfb_ajax_die(__('You do not have permission to upload files.'));
+		
+	check_admin_referer(WPFB.'-async-upload');
+}
 
 wpfb_loadclass('Admin');
 
@@ -56,20 +85,28 @@ if(!empty($_REQUEST['delupload']))
 }
 
 if(empty($_FILES['async-upload']))
-	wp_die(__('No file was uploaded.', WPFB));	
+	wp_die(__('No file was uploaded.', WPFB).' (ASYNC)');	
 
 
 if(!@is_uploaded_file($_FILES['async-upload']['tmp_name'])
 	|| !($tmp = WPFB_Admin::GetTmpFile($_FILES['async-upload']['name'])) || !@move_uploaded_file($_FILES['async-upload']['tmp_name'], $tmp))
 {
-	echo '<div class="error-div">
-	<a class="dismiss" href="#" onclick="jQuery(this).parents(\'div.media-item\').slideUp(200, function(){jQuery(this).remove();});">' . __('Dismiss') . '</a>
-	<strong>' . sprintf(__('&#8220;%s&#8221; has failed to upload due to an error'), esc_html($_FILES['async-upload']['name']) ) . '</strong></div>';
-	exit;
+	wpfb_ajax_die(sprintf(__('&#8220;%s&#8221; has failed to upload due to an error'), esc_html($_FILES['async-upload']['name']) ));
 }
 $_FILES['async-upload']['tmp_name'] = trim(substr($tmp, strlen(WPFB_Core::UploadDir())),'/');
 
-@header('Content-Type: application/json; charset=' . get_option('blog_charset'));
-echo json_encode($_FILES['async-upload']);
+$json = json_encode($_FILES['async-upload']);
 
-?> 
+if($file_add_now) {
+	$result = WPFB_Admin::InsertFile(array('file_flash_upload' => $json, 'file_category' => 0), false);
+	if(empty($result['error'])) {
+		$json = json_encode(array_merge((array)$result['file'], array(
+			 'file_thumbnail_url' => $result['file']->GetIconUrl(),
+			 'nonce' => wp_create_nonce(WPFB.'-updatefile'.$result['file_id'])
+		)));
+	}
+}
+
+@header('Content-Type: application/json; charset=' . get_option('blog_charset'));
+@header('Content-Length: '.strlen($json));
+echo $json;

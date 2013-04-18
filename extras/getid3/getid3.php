@@ -48,7 +48,7 @@ if (!$temp_dir) {
 	$temp_dir = '*'; // invalid directory name should force tempnam() to use system default temp dir
 }
 // $temp_dir = '/something/else/';  // feel free to override temp dir here if it works better for your system
-define('GETID3_TEMP_DIR', $temp_dir);
+if(!defined('GETID3_TEMP_DIR')) define('GETID3_TEMP_DIR', $temp_dir);
 unset($open_basedir, $temp_dir);
 
 
@@ -1736,9 +1736,11 @@ abstract class getid3_handler
 }
 
 
-class getid3_exception extends Exception
-{
-    public $message;
+if(!class_exists('getid3_exception')) {
+	class getid3_exception extends Exception
+	{
+	    public $message;
+	}
 }
 
 ?>

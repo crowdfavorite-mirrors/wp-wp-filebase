@@ -24,8 +24,8 @@ class progressbar
 	}
 		
 	private $id=0, $value=0, $steps=0, $width=0, $height=0, $color='', $bgcolor='', $inner_styleclass='', $outer_styleclass='', $show_digits=true;
-	
-	public function progressbar( $value = 0, $steps = 100, $width = 100, $height = 20, $color = '#0C0', $bgcolor = '#FFF', $inner_styleclass = '', $outer_styleclass = '')
+
+	public function progressbar( $value = 0, $steps = 100, $width = 100, $height = 20, $color = '#0C0', $bgcolor = '#FFF', $inner_styleclass = 'wpfb-progress-bar-in', $outer_styleclass = '')
 	{
 		static $progress_bars;		
 		if(empty($progress_bars))
@@ -70,10 +70,10 @@ class progressbar
 		$isc = empty($this->inner_styleclass) ? false : $this->inner_styleclass;
 		$cl = "color:{$this->color};";
 
-		self::_echo("<div id=\"{$jsp}b{$id}\" style=\"{$w}{$h}text-align:left;background-color:{$this->bgcolor};overflow:hidden;".($osc?"\" class=\"{$osc}\"":"border:1px solid #000;\"").">");
+		self::_echo("<div id=\"{$jsp}b{$id}\" style=\"{$w}{$h}text-align:left;background-color:{$this->bgcolor};overflow:hidden;".($osc?"\" class=\"{$osc}\"":"border:1px solid #000; border-radius:4px; box-shadow: 1px 1px 1px #AAA;\"").">");
 		if($this->show_digits)
 			self::_echo("\n<div id=\"{$jsp}d{$id}\" style=\"{$w}{$h}text-align:center;line-height:{$this->height}px;position:absolute;z-index:3;{$cl}\"></div>");
-		self::_echo("<div id=\"{$jsp}{$id}\" style=\"width:0px;{$h}background-{$cl}".($isc?" class=\"{$isc}\"":"\"")."></div>");
+		self::_echo("<div id=\"{$jsp}{$id}\" style=\"width:0px;{$h}background-{$cl};text-shadow:0 1px 0px #333; box-shadow: 1px 0 1px black;\"".($isc?" class=\"{$isc}\"":"\"")."></div>");
 		self::_echo("\n</div>");
 		self::execute_js("{$jsp}i({$this->id},{$this->value},{$this->steps},{$this->width});");
 		$this->client_value = $this->value;

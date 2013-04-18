@@ -156,6 +156,8 @@ function insListTag() {
 	var showcats = !!jQuery('#list-show-cats:checked').val();
 	if(showcats) tag.showcats = 1;
 	
+	tag.pagenav = jQuery('#list-pagenav:checked').val() ? '1' : '0';
+	
 	var sortcatsby = jQuery('#list-cat-sort-by').val();	
 	if(showcats && sortcatsby && sortcatsby != '') {
 		var order = jQuery('input[name=list-cat-sort-order]:checked', '#list').val();

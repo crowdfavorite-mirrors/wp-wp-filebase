@@ -3,9 +3,11 @@ class WPFB_Search {
 
 static function InitClass()
 {
-	add_filter('posts_join', array(__CLASS__, 'PostsJoin'));
-	add_filter('posts_search', array(__CLASS__, 'PostsSearch'));
-	add_filter('posts_groupby', array(__CLASS__, 'PostsGroupBy'));
+	if(WPFB_Core::$settings->search_integration) {
+		add_filter('posts_join', array(__CLASS__, 'PostsJoin'));
+		add_filter('posts_search', array(__CLASS__, 'PostsSearch'));
+		add_filter('posts_groupby', array(__CLASS__, 'PostsGroupBy'));
+	} 
 }
 
 static function PostsJoin($join)
@@ -59,6 +61,7 @@ static function SearchWhereSql($search_id3=false, $s=null) {
 	$search_terms = self::getSearchTerms($s);
 	$where = "(1";
 	
+	// TODO: search fields with match...
 	foreach($search_terms as $term) {
 		$where .= " AND (";
 		$or = '';
@@ -67,7 +70,7 @@ static function SearchWhereSql($search_id3=false, $s=null) {
 			$where .= " {$or}({$col} LIKE '{$p}{$term}{$p}')";
 			if(empty($or)) $or = 'OR ';
 		}
-		if($search_id3) $where .= " OR ({$wpdb->wpfilebase_files_id3}.keywords LIKE '{$p}{$term}{$p}')";
+		if($search_id3) $where .= " OR ({$wpdb->wpfilebase_files_id3}.keywords LIKE '{$p}{$term}{$p}')"; // TODO: MATCH func here
 		$where .= ") ";
 	}
 	$where .= ")";
@@ -82,11 +85,13 @@ static function PostsSearch($sql)
 	
 	if(empty($sql)) return $sql;
 	
+	wpfb_loadclass('File');
+	
 	$search_id3 = WPFB_Core::GetOpt('search_id3');
 	$no_matches = false;	
 	$where = self::SearchWhereSql($search_id3);	
-	wpfb_loadclass('File');
-	$where = "($where AND (".WPFB_File::GetPermissionWhere()."))";
+	
+	$where = "($where AND (".WPFB_File::GetReadPermsWhere()."))";
 	
 	// check if there are matching files, if there are, include the filebrowser page/post in the resulst!
 	$file_browser_id = intval(WPFB_Core::GetOpt('file_browser_post_id'));
@@ -103,7 +108,7 @@ static function PostsSearch($sql)
 	$p = strrpos($sql, ")))");
 	$sql = substr($sql, 0, $p+3) . " OR $where)" . substr($sql, $p+3);
 	
-	//echo $sql;
+	//echo "<br>".$sql;
 	
 	return $sql;
 }
@@ -123,8 +128,14 @@ static function ID3Join() { // deprecated TODO
 // used for filebrowser search results
 static function FileSearchContent(&$ref_content)
 {
-	$files = WPFB_File::GetFiles2(self::SearchWhereSql(WPFB_Core::GetOpt('search_id3'), stripslashes($_GET['wpfb_s'])), WPFB_Core::GetOpt('hide_inaccessible'));	
-	foreach($files as $file)
-		$ref_content .= $file->GenTpl2();
+	wpfb_loadclass('ListTpl');
+	$tpl = WPFB_ListTpl::Get(WPFB_Core::$settings->search_result_tpl);
+	if($tpl !== null) {
+		$ref_content .= $tpl->Generate(null, false, null, WPFB_Core::$settings->filelist_num);
+	} else {
+		$files = WPFB_File::GetFiles2(self::SearchWhereSql(WPFB_Core::GetOpt('search_id3'), stripslashes($_GET['wpfb_s'])), WPFB_Core::GetOpt('hide_inaccessible'));
+		foreach($files as $file)
+			$ref_content .= $file->GenTpl2();
+	}
 }
 }

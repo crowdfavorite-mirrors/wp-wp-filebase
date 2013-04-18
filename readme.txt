@@ -1,29 +1,29 @@
 ﻿=== WP-Filebase Download Manager ===
 Contributors: fabifott
 Donate link: https://www.paypal.com/cgi-bin/webscr?cmd=_donations&business=wpfilebase%40fabi%2eme&item_name=WP-Filebase&no_shipping=0&no_note=1&tax=0&currency_code=USD&lc=US&bn=PP%2dDonationsBF&charset=UTF%2d8
-Tags: filebase, filemanager, file, files, manager, upload, download, downloads, downloadmanager, traffic, widget, filelist, list, thumb, thumbnail, attachment, attachments, category, categories, media, template, ftp, http, mp3, id3
+Tags: filebase, filemanager, file, files, manager, upload, download, downloads, downloadmanager, images, pdf, widget, filelist, list, thumbnails, thumbnail, attachment, attachments, category, categories, media, template, ftp, http, mp3, id3
 Requires at least: 3.1
-Tested up to: 3.4.2
-Stable tag: 0.2.9.23
+Tested up to: 3.5.1
+Stable tag: 0.2.9.35
 
-Adds a powerful download manager supporting file categories, downloads counter, widgets, sorted file lists and more to your WordPress blog.
+Adds a powerful download manager including file categories, downloads counter, widgets, sorted file lists and more to your WordPress blog.
 
 == Description ==
 
-WP-Filebase is an all-round file manager for Wordpress.
+WP-Filebase is an advanced file manager for Wordpress.
 It keeps files structured in categories, offers a template system to create sortable, paginated file lists and can sideload files from another web site.
 The Plugin is made for easy management of many files and consistent output using templates.
 
 With WP-Filebase you can...
 
 *	create dynamic paginated and sortable file lists
+*	restrict downloads for certain user roles
 *	build photo galleries
 *	embed flash (or other formats) videos using a template player
 *	easily publish MP3 and other audio files with automatic ID3 tag detection
-*	restrict downloads for certain user roles
-*	upload files from the front-end via widgets
+*	allow users to upload files from the front-end
 
-Some more features:
+More features are:
 
 *	Category / child category / file taxonomy
 *	Automatic thumbnails
@@ -35,7 +35,7 @@ Some more features:
 *	Customizable template system
 *	Insert flexible shortcodes with the Visual Editor Plugin
 *	Sortable paginated file lists
-*	Supports [DataTables](http://datatables.net/) 
+*	Supports [DataTables](http://datatables.net/) for dynamic lists
 *	Associate files to posts and automatically attach them to the content
 *	User Role access restrictions, limit file access to certain user roles 
 *	Upload files in your browser, with FTP or from URL (sideloading)
@@ -48,18 +48,27 @@ Some more features:
 *	Search integration
 *	Automatic synchronization of file system and database
 
-
-You can see a [live demo on my Website](http://fabi.me/downloads/ "WP-Filebase demo")
+You can see a [live demo on my Website](http://fabi.me/downloads/ "WP-Filebase demo"), [documentation can be found here](http://wpfilebase.com/documentation/ "WP-Filebase documentation").
 For support, please [leave a message on my blog](http://fabi.me/wordpress-plugins/wp-filebase-file-download-manager/#postcomment "Post comment"). When having trouble don't forget to post PHP and Wordpress version! Any ideas/feature requests are welcome.
 
-**Note when updating to 0.2.1:** Since 0.2.1 WP-Filebase uses a different shortcode format. Old tags can be easily converted with the built-in converter. Please backup your database and run the converter right after the update. You should also run a filebase sync!
-**Important:** Don't upgrade to 0.2.1 if you are still running old PHP 4! WP-Filebase 0.2.1 only runs on PHP 5 and later!
+= WP-Filebase Pro =
+[WP-Filebase Pro](http://wpfilebase.com/) includes even more advanced features:
+
+*	PDF indexing and thumbnails
+*	Secondary Categories
+*	Extended Permissions
+*	File Passwords
+*	Embedded Upload Forms
+*	Improved Syncing algorithm
+*	Dropbox, Amazon S3 and FTP sync
 
 == Installation ==
 
 1. Upload the `wp-filebase` folder with all it's files to `wp-content/plugins`
 2. Create the directory `/wp-content/uploads/filebase` and make it writable (FTP command: `CHMOD 777 wp-content/uploads/filebase`)
 3. Activate the Plugin and customize the settings under *Settings->WP-Filebase*
+
+Read more in [WP-Filebase documentation](http://wpfilebase.com/documentation/setup/).
 
 == Frequently Asked Questions ==
 
@@ -103,6 +112,99 @@ Goto WP-Filebase Settings and disable Permalinks under "Download". Try to disabl
 
 
 == Changelog ==
+
+= 0.2.9.35 =
+* Increased stability of sync
+* Backend: Fixed not all files beeing visible for Admins
+* Fixed Editor Plugin flash uploader
+* Fixed minor bugs
+* Upload permissions are inherited
+* New Option 'Use fpassthru' to avoid invalid download data on some servers
+* New GUI tab for File Page Templates
+* Removed Option `Destroy session when downloading`, this will now work in a different way
+* Fixed flash uploader behavior when uploading file updates
+* Fixed file renaming on upload
+* Fixed quote escaping in template IF expressions
+
+
+= 0.2.9.34 =
+* Custom language files dir can be set with PHP constant WPFB_LANG_DIR in wp-config.php
+* Fixed quote escaping in template IF expressions
+* Fixed flash uploader behavior when uploading file updates
+
+= 0.2.9.33 =
+* New Option: Search Result Template
+* Added complete un-install (Button located at WP-Filebase dashboard bottom)
+* Fixed download URLs for file names containing `'`
+* Files added with multi uploader are added directly after upload finished
+* File Form: Licenses are hidden if none specified in Settings
+
+= 0.2.9.31 =
+* Fixed fatal error occuring in PHP Versions before 5.3 (`func_get_args() can't be used as a function parameter`)
+* Fixed CSS loading issue
+
+= 0.2.9.29 =
+* Added pagenav checkbox to editor plugin
+* Added Visual Editor for File Description
+* New Option: Default File Direct Linking
+* DataTables are now sorted according to the Shortcode argument `sort`
+* Fixed minor bugs
+* Fixed context menu on DataTables
+* Added ID display to back-end Category list
+* Shortcodes are parsed in template preview
+* Removed deprecated file list widget control
+* Decreased time for cache revalidation when downloading a File
+* Fixed Extended/Simple Form toggle
+* Admins can download offline files
+
+= 0.2.9.28 =
+* Made code adjustments for WordPress 3.5 compatibility
+* New Option `Small Icon Size` in File Browser settings to adjust the size of icons and thumbnails
+* Improved compatibility with custom Role Plugins
+* Some GUI changes
+* Fixed 'Cheating uh?' bug when using the category seaech form after editing (thanks to David Bell)
+* Fixed secondary category query causing files to appear in root folder
+* Removed call wp_create_thumbnail which is deprecated since WP 3.5
+* Widget File Search Form now looks like the default search form
+* Added length limit for template variables: `%file_display_name:20%` limits the name to 20 characters
+* Fixed pagenav shortcode parameter, thanks to yuanl
+* Fixed file size limit in Drag&Drop uploader causing trouble
+* Fixed CSS Editor Bug
+* Fixed bug in list sorting
+
+= 0.2.9.27 =
+* Fixed AJAX tree not showing
+
+= 0.2.9.26 =
+* Fixed flash uploader
+* Fixed admin bar context menu
+* Re-organized some settings tabs
+* Missing files will automatically set offline during sync
+* Updated Brazillian Portuguese translation by Felipe Cavalcanti
+* Fixed Item::GetParents() stuck in endless loop
+
+= 0.2.9.25 =
+* [WP-Filebase Documentation](http://wpfilebase.com/documentation/) and [WP-Filebase Pro](http://wpfilebase.com/) released
+* Added Category Owners
+* Raised limits of file name length: file name 300, category folder name: 300, total path length: 2000
+* Fixed invalid AJAX reponses caused by interfering plugins
+* Fixed security issues in category management
+
+= 0.2.9.24 =
+* Added field to rename files in file upload form
+* Configuration of old File Widget will be retained on update. Please change to the new multi-instance widget after updating!
+* New Option `Inaccessible category message`
+* Improved access permission handling for AJAX tree
+* Fixed OpenOffice download link
+* New template variable `%cat_user_can_access%` and `%file_user_can_access%`
+* Files are only re-scanned if changed
+* Fixed external MD5 hashing on Windows
+* MySQL connection are closed during download
+* New Template varialbe `%file_cat_folder%`
+* Added sync debug info when query variable `debug` is set to 1 (add &debug=1 to the sync page URL and see the HTML source for backtrace) 
+* Inaccessible categories are displayed in lists, but their content cannot be viewed
+* Fixed resources URL when using SSL
+* Removed HTML align property for category icons according to HTML5 standard 
 
 = 0.2.9.23 =
 * Configuration of old File Widget will be retained on update. Please change to the new multi-instance widget after updating!
@@ -524,11 +626,18 @@ Goto WP-Filebase Settings and disable Permalinks under "Download". Try to disabl
 = 0.2.0 =
 PHP 5 or later required! This is a big upgrade with lots of new features. You have to convert old content tags to new shortcodes. Go to WP-Filebase management page and you should see a yellow box with the converter notice (backup the Database before!). And sync the filebase after that!
 
+== Documentation ==
+[WP-Filebase Documentation](http://wpfilebase.com/documentation/)
+
 == Translation ==
 If you want to translate WP-Filebase in your language, open `wp-filebase/languages/template.po` with [Poedit](http://www.poedit.net/download.php) and save as `wpfb-xx_YY.po` (`xx` is your language code, `YY` your country). Poedit will create the file `wpfb-xx_YY.mo`. Put this file in `wp-filebase/languages` and share it if you like (attach it to an email or post it on my blog).
 
 == Plugin Developers ==
 WP-Filebase currently offers the action `wpfilebase_sync`. This will run a fast filebase sync that adds new files.
 
+== WP-Filebase Pro ==
+[WP-Filebase Pro](http://wpfilebase.com/) is the commercial version of WP-Filebase with an extended range of functions. It supports secondary categories, extended permissions, embedded upload forms. Furthermore it can generate PDF thumbnails, sync with Dropbox or FTP and includes an improved file sync algorithm.
+
 == Traffic Limiter ==
 If you only want to limit traffic or bandwidth of media files you should take a look at my [Traffic Limiter Plugin](http://wordpress.org/extend/plugins/traffic-limiter/ "Traffic Limiter").
+

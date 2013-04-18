@@ -127,6 +127,21 @@ function FileListCntrl()
 	</div>
 	<?php
 }
+
+function CatTree(&$root_cat)
+{
+	echo '<li><a href="'.$root_cat->GetUrl().'">'.esc_html($root_cat->cat_name).'</a>';
+	
+	$childs =& $root_cat->GetChildCats();
+	if(count($childs) > 0)
+	{
+		echo '<ul>';
+		foreach(array_keys($childs) as $i) self::CatTree($childs[$i]);
+		echo '</ul>';
+	}
+	
+	echo '</li>';
+}
 }
 
 class WPFB_UploadWidget extends WP_Widget {
@@ -135,10 +150,9 @@ class WPFB_UploadWidget extends WP_Widget {
 		parent::WP_Widget( false, WPFB_PLUGIN_NAME .' '.__('File Upload'), array('description' => __('Allows users to upload files from the front end.',WPFB)) );
 	}
 
-	function widget( $args, $instance ) {			
+	function widget( $args, $instance ) {
 		if(!WPFB_Core::GetOpt('frontend_upload'))
 			return;
-
 		wpfb_loadclass('File', 'Category', 'Output');
 		
 		$instance['category'] = empty($instance['category']) ? 0 : (int)$instance['category'];
@@ -150,7 +164,9 @@ class WPFB_UploadWidget extends WP_Widget {
 		
 		$prefix = "wpfb-upload-widget-".$this->id_base;
 		$form_url = add_query_arg('wpfb_upload_file', 1);
-		WPFB_Output::FileForm($prefix, $form_url, array('cat' => $instance['category'], 'overwrite' => (int)$instance['overwrite']));
+		$form_args = array('cat' => $instance['category'], 'overwrite' => (int)$instance['overwrite']);
+		$form_args['file_post_id'] = $instance['attach'] ? WPFB_Core::GetPostId() : 0; // attach file to current post
+		WPFB_Output::FileForm($prefix, $form_url, $form_args);
 		
 		echo $after_widget;
 	}
@@ -161,6 +177,7 @@ class WPFB_UploadWidget extends WP_Widget {
 		$instance['title'] = strip_tags($new_instance['title']);
 		$instance['category'] = ($new_instance['category'] > 0) ? (is_null($cat=WPFB_Category::GetCat($new_instance['category'])) ? 0 : $cat->GetId()) : (int)$new_instance['category'];
 		$instance['overwrite'] = !empty($new_instance['overwrite']);
+		$instance['attach'] = !empty($new_instance['attach']);
         return $instance;
 	}
 	
@@ -180,6 +197,7 @@ class WPFB_UploadWidget extends WP_Widget {
 				</select>
 			</label></p>
 			<p><input type="checkbox" id="<?php echo $this->get_field_id('overwrite'); ?>" name="<?php echo $this->get_field_name('overwrite'); ?>" value="1" <?php checked(!empty($instance['overwrite'])) ?> /> <label for="<?php echo $this->get_field_id('overwrite'); ?>"><?php _e('Overwrite existing files', WPFB) ?></label></p>
+			<p><input type="checkbox" id="<?php echo $this->get_field_id('attach'); ?>" name="<?php echo $this->get_field_name('attach'); ?>" value="1" <?php checked(!empty($instance['attach'])) ?> /> <label for="<?php echo $this->get_field_id('attach'); ?>"><?php _e('Attach file to current post/page', WPFB) ?></label></p>
 		</div><?php
 	}
 }
@@ -251,18 +269,14 @@ class WPFB_SearchWidget extends WP_Widget {
 		echo $before_widget, $before_title . (empty($title) ? __('Search Files',WPFB) : $title) . $after_title;
 		
 		$prefix = "wpfb-search-widget-".$this->id_base;
-		$form_url = add_query_arg('wpfb_add_cat', 1);
-		$nonce_action = $prefix;
-		?>
-		<form name="<?php echo $prefix ?>form" method="get" action="<?php echo remove_query_arg(array('p','post_id','page_id','wpfb_s')); ?>" class="searchform" id="searchform">
-		<input name="p" type="hidden" value="<?php echo WPFB_Core::GetOpt('file_browser_post_id') ?>" />
-		<fieldset>
-			<input name="wpfb_s" id="<?php echo $prefix ?>search" type="text" value="<?php echo empty($_GET['wpfb_s']) ? '' : esc_attr(stripslashes($_GET['wpfb_s'])) ?>" />
-			<!-- <button type="submit" name="searchsubmit" value="Search"></button> -->
-			<input type="submit" class="button-primary" name="searchsubmit" value="<?php _e('Search'/*def*/) ?>" />
-		</fieldset>	
-		</form>
-	<?php
+		
+		$fbp_id = WPFB_Core::GetOpt('file_browser_post_id');
+		$action = WPFB_Core::GetPostUrl($fbp_id);
+		$p_in_query = (strpos($action,'?') !== false); // no permalinks?
+		$action = $p_in_query ? remove_query_arg(array('p','post_id','page_id','wpfb_s')) : $action;
+		
+		echo WPFB_Output::GetSearchForm($action, $p_in_query ? array('p' => $fbp_id) : null, "");
+
 		echo $after_widget;
 	}
 
@@ -388,6 +402,12 @@ class WPFB_FileListWidget extends WP_Widget {
 	function WPFB_FileListWidget() {
 		parent::WP_Widget( false, WPFB_PLUGIN_NAME .' '.__('File list', WPFB), array('description' => __('Listing of files with custom sorting', WPFB)) );
 	}
+	
+	static function limitStrLen($str, $maxlen)
+	{
+		if($maxlen > 3 && strlen($str) > $maxlen) $str = (function_exists('mb_substr') ? mb_substr($str, 0, $maxlen-3,'utf8') : mb_substr($str, 0, $maxlen-3)).'...';
+		return $str;
+	}
 
 	function widget( $args, $instance ) {
 		wpfb_loadclass('File', 'Category', 'Output');
@@ -406,6 +426,9 @@ class WPFB_FileListWidget extends WP_Widget {
 			array($instance['sort-by'] => ($instance['sort-asc'] ? 'ASC' : 'DESC')),
 		 	(int)$instance['limit']
 		);
+		
+		//$instance['tpl_parsed']
+		//WPFB_FileListWidget
 		
 		$tpl_func = WPFB_Core::CreateTplFunc($instance['tpl_parsed']);
 		echo '<ul>';

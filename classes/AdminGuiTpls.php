@@ -3,7 +3,7 @@ class WPFB_AdminGuiTpls {
 	
 static $sample_file = null;
 static $sample_cat = null;
-static $protected_tags = array('default','single','excerpt','filebrowser','filepage');
+static $protected_tags = array('default','single','excerpt','filebrowser','filepage','filepage_excerpt');
 
 static function InitClass() {
 	global $user_identity, $current_user;
@@ -173,11 +173,12 @@ jQuery(document).ready( function() {
 			
 		default:
 ?>
+<h2><?php _e('Templates',WPFB); ?></h2>
 <div id="wpfb-tabs">
 	<ul class="wpfb-tab-menu">
 		<li><a href="#file"><?php _e('Files', WPFB) ?></a></li>
 		<li><a href="#cat"><?php _e('Categories') ?></a></li>
-		<li><a href="#list"><?php _e('File list', WPFB) ?></a></li>
+		<li><a href="#list"><?php _e('File List', WPFB) ?></a></li>
 	</ul>
 	
 	<div id="file" class="wrap">
@@ -194,6 +195,7 @@ jQuery(document).ready( function() {
 	<p><?php _e('A list-template consists of header, footer and file template. It can optionally have a category template to list sub-categories.',WPFB); ?></p>
 	<?php self::TplsTable('list'); ?>
 	</div>
+
 	
 	<div id="browser" class="wrap">
 	</div>
@@ -208,7 +210,7 @@ jQuery(document).ready( function() {
 	}
 }
 
-static function TplsTable($type) {
+static function TplsTable($type, $exclude=array(), $include=array()) {
 	global $user_identity;
 	$cat = ($type == 'cat');
 	$list = ($type == 'list');
@@ -236,6 +238,7 @@ static function TplsTable($type) {
 
 	<tbody>
 <?php foreach($tpls as $tpl_tag => $tpl_src) {
+	if( (!empty($include) && !in_array($tpl_tag, $include)) || (!empty($exclude) && in_array($tpl_tag, $exclude))) continue;
 	$edit_link = add_query_arg(array('action'=>'edit','type'=>$type,'tpl'=>$tpl_tag));
 	if($list) $tpl = WPFB_ListTpl::Get($tpl_tag);
 	
@@ -247,14 +250,14 @@ static function TplsTable($type) {
 	<tr id="tpl-<?php echo "$type-$tpl_tag" ?>" class="iedit" valign="top">
 		<th scope="row" class="check-column"><input type="checkbox" name="tpl[]" value="<?php echo esc_attr($tpl_tag) ?>" /></th>
 		<td class="column-title">
-			<strong><a class="row-title" href="<?php echo $edit_link ?>" title="<?php printf(__('Edit &#8220;%s&#8221;'), $tpl_tag) ?>"><?php echo __(__(esc_html(WPFB_Output::Filename2Title($tpl_tag))), WPFB) ?></a></strong>
+			<strong><a class="row-title" href="<?php echo $edit_link ?>" title="<?php printf(__('Edit &#8220;%s&#8221;'), $tpl_tag) ?>"><?php echo self::TplTitle($tpl_tag); ?></a></strong>
 			<div class="row-actions"><span class='edit'><a href="<?php echo $edit_link ?>" title="<?php _e('Edit this item') ?>"><?php _e('Edit') ?></a></span>
 			<?php if(!in_array($tpl_tag, self::$protected_tags)){ ?><span class='trash'>| <a class='submitdelete' title='<?php _e('Delete this item permanently') ?>' href='<?php echo add_query_arg(array('action'=>'del','type'=>$type,'tpl'=>$tpl_tag)).'#'.$type ?>'><?php _e('Delete') ?></a></span><?php } ?>
 			</div>
 		</td>
 		<td>
 			<div class="entry-content wpfilebase-tpl-preview">
-				<div id="tpl-preview_<?php echo $tpl_tag ?>"><?php echo $list ? $tpl->Sample(self::$sample_cat, self::$sample_file) : $item->GenTpl(WPFB_TplLib::Parse($tpl_src), 'sample') ?></div>
+				<div id="tpl-preview_<?php echo $tpl_tag ?>"><?php echo do_shortcode($list ? $tpl->Sample(self::$sample_cat, self::$sample_file) : $item->GenTpl(WPFB_TplLib::Parse($tpl_src), 'sample')) ?></div>
 				<div style="height: 50px; float: left;"></div>
 				<div class="clear"></div>
 			</div>
@@ -289,7 +292,8 @@ static function TplForm($type, $tpl_tag=null)
 		$tpl = $new ? new WPFB_ListTpl() : WPFB_ListTpl::Get($tpl_tag);
 	}
 ?>
-<h2><?php _e($new?'Add Template' : 'Edit Template', WPFB) ?></h2>
+<h2><?php _e($new?'Add Template' : 'Edit Template', WPFB);
+		if(!empty($tpl_tag)) echo ' '.self::TplTitle($tpl_tag);  ?></h2>
 <form action="<?php echo remove_query_arg(array('action','type','tpl')).'#'.$type ?>" method="post">
 	<input type="hidden" name="action" value="<?php echo $new?'add':'update'; ?>" />	
 	<input type="hidden" name="type" value="<?php echo $type; ?>" />	
@@ -325,6 +329,7 @@ static function TplForm($type, $tpl_tag=null)
 			<textarea id="tpl-list-footer" name="tpl-list-footer" cols="70" rows="<?php echo (max(2, count(explode("\n",$tpl->footer)))+3); ?>" wrap="off" class="codepress html wpfilebase-tpledit" onkeyup="WPFB_PreviewTpl(this, '<?php echo $type ?>')" onchange="WPFB_PreviewTpl(this, '<?php echo $type ?>')"><?php echo htmlspecialchars($tpl->footer) ?></textarea><br />
 		</td>
 	</tr>
+
 </table>
 	<?php } else { ?>
 	<p>
@@ -356,5 +361,9 @@ static function TplDropDown($type, $selected=null) {
 	}
 	return $content;
 }
+
+static function TplTitle($tpl_tag)
+{
+ 	return __(__(esc_html(WPFB_Output::Filename2Title($tpl_tag))), WPFB);
 }
-?>
+}

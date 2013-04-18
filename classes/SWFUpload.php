@@ -1,46 +1,17 @@
 <?php
 
-class WPFB_SWFUpload
+class WPFB_SWFUpload extends WPFB_AdvUploader
 {
-	function GetAjaxAuthData()
+	function Scripts($prefix)
 	{
-		return trim(json_encode(array(
-			"auth_cookie" => (is_ssl() ? $_COOKIE[SECURE_AUTH_COOKIE] : $_COOKIE[AUTH_COOKIE]),
-			"logged_in_cookie" => $_COOKIE[LOGGED_IN_COOKIE],
-			"_wpnonce" => wp_create_nonce(WPFB.'-async-upload')
-		)), '{}');
-	}
-	function Scripts()
-	{
+		$id = $this->id;
+		
 		wp_print_scripts('swfupload-all');
 		wp_print_scripts('swfupload-handlers');
-		
-
 		?>
 		
 <script type="text/javascript">
 //<![CDATA[
-
-function fileQueued(fileObj) {
-	jQuery('#file-upload-progress').show().html('<div class="progress"><div class="bar"></div></div><div class="filename original"><span class="percent"></span> ' + fileObj.name + '</div>');
-	jQuery('.progress', '#file-upload-progress').show();
-	jQuery('.filename', '#file-upload-progress').show();
-
-	jQuery("#media-upload-error").empty();
-	jQuery('.upload-flash-bypass').hide();
-	
-	jQuery('#file-submit').prop('disabled', true);
-	jQuery('#cancel-upload').show().prop('disabled', false);
-
-	 // delete already uploaded temp file	
-	if(jQuery('#file_flash_upload').val() != '0') {
-		jQuery.ajax({type: 'POST', async: true, url:"<?php echo esc_attr( WPFB_PLUGIN_URI.'wpfb-async-upload.php' ); ?>",
-		data: {<?php echo self::GetAjaxAuthData() ?> , delupload:jQuery('#file_flash_upload').val()},
-		success: (function(data){})
-		});
-		jQuery('#file_flash_upload').val(0);
-	}
-}
 
 function uploadProgress(fileObj, bytesDone, bytesTotal) {
 	var w = jQuery('#file-upload-progress').width() - 2, item = jQuery('#file-upload-progress');
@@ -52,39 +23,13 @@ function uploadProgress(fileObj, bytesDone, bytesTotal) {
 		jQuery('.filename', '#file-upload-progress').hide();
 	}
 }
-
-function wpFileError(fileObj, message) {
-	jQuery('#media-upload-error').show().html(message);
-	jQuery('.upload-flash-bypass').show();
-	jQuery("#file-upload-progress").hide().empty();
-	jQuery('#cancel-upload').hide().prop('disabled', true);
-}
-
-
-function uploadError(fileObj, errorCode, message) {
-	wpFileError(fileObj, "Error "+errorCode+": "+message);
-}
-
-function uploadSuccess(fileObj, serverData) {
-	// if async-upload returned an error message, place it in the media item div and return
-	if ( serverData.match('media-upload-error') ) {
-		wpFileError(fileObj, serverData);
-		return;
-	}
-	jQuery('#file_flash_upload').val(serverData);
-	jQuery('#file-submit').prop('disabled', false);
-}
-
-function uploadComplete(fileObj) {
-	jQuery('#cancel-upload').hide().prop('disabled', true);
-}
 	
 //]]>
 </script>
 <?php
 	}
 	
-	function Display($form_url) {
+	function Display() {
 
 // #8545. wmode=transparent cannot be used with SWFUpload
 
@@ -110,8 +55,10 @@ SWFUpload.onload = function() {
 			flash_url : "<?php echo includes_url('js/swfupload/swfupload.swf'); ?>",
 			file_post_name: "async-upload",
 			file_types: "<?php echo apply_filters('upload_file_glob', '*.*'); ?>",
-			post_params : { <?php echo self::GetAjaxAuthData(); ?> },
-			file_size_limit : "<?php echo wp_max_upload_size(); ?>b",
+			post_params : { <?php echo $this->GetAjaxAuthData(); ?> },
+			file_size_limit : "<?php
+			require_once(ABSPATH . 'wp-admin/includes/template.php');
+			echo wp_max_upload_size(); ?>b",
 			file_queue_limit: 1,
 			
 			file_dialog_start_handler : (function(){}),

@@ -8,6 +8,8 @@ class WPFB_ListTpl {
 	var $footer;
 	var $file_tpl_tag;
 	var $cat_tpl_tag;
+	var $current_list = null;
+        
 		
 	static function Get($tag) {
 		$tag = trim($tag, '\'');
@@ -17,6 +19,7 @@ class WPFB_ListTpl {
 	
 	static function GetAll() {
 		$tpls = get_option(WPFB_OPT_NAME.'_list_tpls');
+		if(empty($tpls)) return array();
 		foreach($tpls as $tag => $tpl)
 			$tpls[$tag] = new WPFB_ListTpl($tag, $tpl);
 		return $tpls;
@@ -36,35 +39,17 @@ class WPFB_ListTpl {
 		$tpls = get_option(WPFB_OPT_NAME.'_list_tpls');
 		if(!is_array($tpls)) $tpls = array();
 		$data = (array)$this;
-		unset($data['tag']);
+		unset($data['tag'], $data['current_list']);
 		$tpls[$this->tag] = $data; 
 		update_option(WPFB_OPT_NAME.'_list_tpls', $tpls);
 	}
 	
-	static function ParseHeaderFooter($str, $uid=null) {
-		global $wp_query;	
+	private function ParseHeaderFooter($str, $uid=null) {
 		$str = preg_replace('/%sort_?link:([a-z0-9_]+)%/ie', __CLASS__.'::GenSortlink(\'$1\')', $str);
+		
 		if(strpos($str, '%search_form%') !== false) {
-			$searching = !empty($_GET['wpfb_s']);
-			if($searching) {
-				$sb = empty($wp_query->query_vars['s'])?null:$wp_query->query_vars['s']; 
-				$wp_query->query_vars['s'] = $_GET['wpfb_s'];
-			}
-			
-			ob_start();
-			get_search_form();
-			$form = ob_get_clean();
-			if(empty($form)) echo "Searchform empty!";
-			
-			if($searching) $wp_query->query_vars['s'] = $sb; // restore query var s
-
-			$form = preg_replace('/action=["\'].+?["\']/', 'action=""', $form);
-			$form = str_replace('="s"', '="wpfb_s"', $form);
-			$form = str_replace("='s'", "='wpfb_s'", $form);
-			$gets = '';
-			foreach($_GET as $name => $value) if($name != 'wpfb_s' && $name != 'wpfb_list_page') $gets.='<input type="hidden" name="'.esc_attr(stripslashes($name)).'" value="'.esc_attr(stripslashes($value)).'" />';
-			$form = str_ireplace('</form>', "$gets</form>", $form);
-			$str = str_replace('%search_form%', $form, $str);
+			wpfb_loadclass('Output');
+			$str = str_replace('%search_form%', WPFB_Output::GetSearchForm("", $_GET), $str);
 		}
 		
 		$str = preg_replace('/%print_?script:([a-z0-9_-]+)%/ie', __CLASS__.'::PrintScriptOrStyle(\'$1\', false)', $str);
@@ -72,6 +57,35 @@ class WPFB_ListTpl {
 	
 		if(empty($uid)) $uid = uniqid();
 		$str = str_replace('%uid%', $uid, $str);
+		
+		
+		$count = 0;
+		$str = preg_replace("/jQuery\((.+?)\)\.dataTable\s*\((.*?)\)\s*;/", 'jQuery($1).dataTable(wpfb_DataTableOptionsFilter'.$uid.'($2));'."\r\n//%WPFB_DATA_TABLE_OPTIONS_FILTER%", $str, -1, $count);
+		if($count > 0)
+		{
+			$dataTableOptions = array();
+			list($sort_field, $sort_dir) = WPFB_Core::ParseFileSorting($this->current_list->file_order);			
+			$file_tpl = WPFB_Core::GetTpls('file', $this->file_tpl_tag);
+			if(($p = strpos($file_tpl, "%{$sort_field}%")) > 0)
+			{
+				// get the column index of field to sort
+				$col_index = substr_count($file_tpl,"</t", 0, $p);				
+				$dataTableOptions["aaSorting"] = array(array($col_index, strtolower($sort_dir)));
+			}
+			
+			if($this->current_list->page_limit > 0)
+					$dataTableOptions["iDisplayLength"] = $this->current_list->page_limit;
+			
+			
+			$str = str_replace('//%WPFB_DATA_TABLE_OPTIONS_FILTER%', 
+"
+function wpfb_DataTableOptionsFilter{$uid}(options){
+	var wpfbOptions = ".json_encode($dataTableOptions).";
+	if('object' == typeof(options)) { for (var v in options) { wpfbOptions[v] = options[v]; } }
+	return wpfbOptions;
+}
+", $str);
+		}	
 		
 		return $str;
 	}
@@ -94,112 +108,124 @@ class WPFB_ListTpl {
 		return $link.($desc?'gt;':'lt;').$by;
 	}
 	
-	function Generate($categories, $show_cats, $file_order, $page_limit, $cat_order=null)
+	function GenerateList(&$content, $categories, $cat_grouping, $file_order, $page_limit, $cat_order=null )
 	{
-		$uid = uniqid();
-		$content = self::ParseHeaderFooter($this->header, $uid);
 		$hia = WPFB_Core::GetOpt('hide_inaccessible');
 		$sort = WPFB_Core::GetFileListSortSql($file_order);
+		
 		
 		if($page_limit > 0) { // pagination
 			$page = (empty($_REQUEST['wpfb_list_page']) || $_REQUEST['wpfb_list_page'] < 1) ? 1 : intval($_REQUEST['wpfb_list_page']);
 			$start = $page_limit * ($page-1);
 		} else $start = -1;
-
-		if(!empty($_GET['wpfb_s'])) { // search
+		
+		if(!empty($_GET['wpfb_s']) || WPFB_Core::$file_browser_search) { // search
 			wpfb_loadclass('Search');
-			$where = WPFB_Search::SearchWhereSql(WPFB_Core::GetOpt('search_id3'), $_GET['wpfb_s']);
+			$where = WPFB_Search::SearchWhereSql(WPFB_Core::GetOpt('search_id3'), isset($_GET['wpfb_s']) ? $_GET['wpfb_s'] : null);
 		} else $where = '1=1';
 		
 		$num_total_files = 0;
 		if(is_null($categories)) { // if null, just list all files!
 			$files = WPFB_File::GetFiles2($where, $hia, $sort, $page_limit, $start);
 			$num_total_files = WPFB_File::GetNumFiles2($where, $hia);
-			foreach($files as $file)
-				$content .= $file->GenTpl2($this->file_tpl_tag);
+				foreach($files as $file) $content .= $file->GenTpl2($this->file_tpl_tag);
 		} else {
 			if(!empty($cat_order))
 				WPFB_Item::Sort($categories, $cat_order);
-						
+		
 			$cat = reset($categories); // get first category
 			if(count($categories) == 1 && $cat->cat_num_files > 0) { // single cat
 				if(!$cat->CurUserCanAccess()) return '';
-				if($show_cats) $content .= $cat->GenTpl2($this->cat_tpl_tag);
+				if($cat_grouping) $content .= $cat->GenTpl2($this->cat_tpl_tag);
 				$where = "($where) AND ".WPFB_File::GetSqlCatWhereStr($cat->cat_id);
 				$files = WPFB_File::GetFiles2($where, $hia, $sort, $page_limit, $start);
 				$num_total_files = WPFB_File::GetNumFiles2($where, $hia);
-				foreach($files as $file)
-					$content .= $file->GenTpl2($this->file_tpl_tag);	
+
+					 foreach($files as $file) $content .= $file->GenTpl2($this->file_tpl_tag);
 			} else { // multi-cat
 				// TODO: multi-cat list pagination does not work properly yet
-				
+		
 				// special handling of categories that do not have files directly: list child cats!
 				if(count($categories) == 1 && $cat->cat_num_files == 0) {
 					$categories = $cat->GetChildCats(true, true);
 					if(!empty($cat_order))
 						WPFB_Item::Sort($categories, $cat_order);
-				}		
-				
-				if($show_cats) { // group by categories
+				}
+		
+				if($cat_grouping) { // group by categories
 					$n = 0;
 					foreach($categories as $cat)
 					{
 						if(!$cat->CurUserCanAccess()) continue;
-						
+		
 						$num_total_files = max($nf = WPFB_File::GetNumFiles2("($where) AND ".WPFB_File::GetSqlCatWhereStr($cat->cat_id), $hia), $num_total_files); // TODO
-						
+		
 						//if($n > $page_limit) break; // TODO!!
 						if($nf > 0) {
-							$files = WPFB_File::GetFiles2("($where) AND ".WPFB_File::GetSqlCatWhereStr($cat->cat_id), $hia, $sort, $page_limit, $start);
-							if($show_cats && count($files) > 0)
+							$files = WPFB_File::GetFiles2("($where) AND ".WPFB_File::GetSqlCatWhereStr($cat->cat_id), $hia, $sort, $page_limit, $start);                                                     
+							if(count($files) > 0) {
 								$content .= $cat->GenTpl2($this->cat_tpl_tag); // check for file count again, due to pagination!
-								
-							foreach($files as $file) {
-								$content .= $file->GenTpl2($this->file_tpl_tag);
-								$n++;
+								foreach($files as $file) $content .= $file->GenTpl2($this->file_tpl_tag); 
 							}
 						}
 					}
 				} else {
-					// this is not very efficient, because all files are
+					// this is not very efficient, because all files are loaded, no pagination!
 					$all_files = array();
 					foreach($categories as $cat)
 					{
-						if(!$cat->CurUserCanAccess()) continue;						
+						if(!$cat->CurUserCanAccess()) continue;
 						$all_files += WPFB_File::GetFiles2("($where) AND ".WPFB_File::GetSqlCatWhereStr($cat->cat_id), $hia, $sort);
 					}
 					$num_total_files = count($all_files);
-					
-					WPFB_Item::Sort($all_files, $sort);
-					
-					$keys = array_keys($all_files);
-					if($start == -1) $start = 0;
-					$last = min($start + $page_limit, $num_total_files);
-					for($i = $start; $i < $last; $i++)
-						$content .= $all_files[$keys[$i]]->GenTpl2($this->file_tpl_tag);
+
+					{
+						 WPFB_Item::Sort($all_files, $sort);
+
+						 $keys = array_keys($all_files);
+						 if($start == -1) $start = 0;
+						 $last = ($page_limit > 0) ? min($start + $page_limit, $num_total_files) : $num_total_files;
+
+						 for($i = $start; $i < $last; $i++)
+							  $content .= $all_files[$keys[$i]]->GenTpl2($this->file_tpl_tag);
+					 }
 				}
 			}
 		}
 		
-		$footer = self::ParseHeaderFooter($this->footer, $uid);
+		return $num_total_files;
+	}
+
+        
+	function Generate($categories=null, $cat_grouping=false, $file_order=null, $page_limit=0, $cat_order=null, $hide_pagenav = false)
+	{
+		$this->current_list = (object)compact('cat_grouping', 'file_order', 'page_limit', 'cat_order');
 		
-		if($page_limit > 0 && $num_total_files > $page_limit) {
+		// self::ParseFileSorting($sort, $attach_order);
+		
+		$uid = uniqid();
+      
+		
+		$content = $this->ParseHeaderFooter($this->header, $uid);
+		
+		$num_total_files = $this->generateList($content, $categories, $cat_grouping, $file_order, $page_limit, $cat_order);
+		
+		$footer = $this->ParseHeaderFooter($this->footer, $uid);		
+		$is_datatable = strpos($footer, ").dataTable(")!==false;
+		
+		// TODO: no page_limit when dataTable?
+		// hide pagenav when using datatable
+		$hide_pagenav = $hide_pagenav || $is_datatable;
+		
+		$page_break = $page_limit > 0 && $num_total_files > $page_limit;
+		
+		if($page_break && !$hide_pagenav) {
 			$pagenav = paginate_links( array(
 				'base' => add_query_arg( 'wpfb_list_page', '%#%' ),
 				'format' => '',
 				'total' => ceil($num_total_files / $page_limit),
 				'current' => empty($_GET['wpfb_list_page']) ? 1 : absint($_GET['wpfb_list_page'])
 			));
-			/*
-			'show_all' => false,
-			'prev_next' => true,
-			'prev_text' => __('&laquo; Previous'),
-			'next_text' => __('Next &raquo;'),
-			'end_size' => 1,
-			'mid_size' => 2,
-			'type' => 'plain',
-			'add_args' => false, // array of query args to add
-			'add_fragment' => ''*/		
 
 			if(strpos($footer, '%page_nav%') === false)
 				$footer .= $pagenav;
@@ -209,19 +235,22 @@ class WPFB_ListTpl {
 			$footer = str_replace('%page_nav%', '', $footer);
 		}
 		
+		
 		$content .= $footer;
-
+		
 		return $content;
 	}
-	
+		
 	function Sample($cat, $file) {
 		$uid = uniqid();
+		$this->current_list = (object)array('cat_grouping' => false, 'file_order' => null, 'page_limit' => 3, 'cat_order' => null);
+	
 		$footer = str_replace('%page_nav%', paginate_links(array(
 			'base' => add_query_arg( 'wpfb_list_page', '%#%' ), 'format' => '',
 			'total' => 3,
 			'current' => 1
-		)), self::ParseHeaderFooter($this->footer, $uid));
-		return self::ParseHeaderFooter($this->header, $uid) . $cat->GenTpl2($this->cat_tpl_tag) . $file->GenTpl2($this->file_tpl_tag) . $footer;		
+		)), $this->ParseHeaderFooter($this->footer, $uid));
+		return $this->ParseHeaderFooter($this->header, $uid) . $cat->GenTpl2($this->cat_tpl_tag) . $file->GenTpl2($this->file_tpl_tag) . $footer;		
 	}
 	
 	function Delete() {

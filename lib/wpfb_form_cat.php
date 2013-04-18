@@ -13,7 +13,7 @@ $form_name = $update ? 'editcat' : 'addcat';
 $nonce_action = WPFB . "-" . $action . ($update ? $file_category->cat_id : '');	
 
 $default_roles = WPFB_Core::GetOpt('default_roles');
-$user_roles = ($update || empty($default_roles)) ? $file_category->GetUserRoles() : $default_roles;
+$user_roles = ($update || empty($default_roles)) ? $file_category->GetReadPermissions() : $default_roles;
 $cat_members_only = !empty($user_roles);
 
 $form_action = add_query_arg('page', 'wpfilebase_cats', remove_query_arg(array('cat_id', 'page', 'action')));
@@ -55,21 +55,7 @@ $form_action = add_query_arg('page', 'wpfilebase_cats', remove_query_arg(array('
 				<input type="checkbox" value="1" name="cat_icon_delete" id="file_delete_thumb" /><label for="cat_icon_delete"><?php _e('Delete'/*def*/); ?></label>
 			<?php } ?>
 			</td>
-		</tr>
-		<!-- <tr>
-		
-		
-		<th scope="row" valign="top"><label for="cat_members_only"><?php _e('For members only', WPFB) ?></label>
-		<input type="checkbox" name="cat_members_only" value="1" <?php checked(true, $cat_members_only) ?> onclick="WPFB_CheckBoxShowHide(this, 'cat_user_roles')" /></th>
-		<td>
-			<select name="cat_user_roles[]" id="cat_user_roles" size="40" multiple="multiple" style="height: 80px;" class="<?php if(!$cat_members_only) { echo 'hidden'; } ?>">
-			<?php WPFB_Output::RolesDropDown($file_category->GetUserRoles());
-			?></select><br />
-			<label for="cat_user_roles" class="<?php if(!$cat_members_only) { echo 'hidden'; } ?>"><?php _e("Select multiple roles by holding the CTRL/COMMAND key.")?></label>
-		</td>
-		</tr>
-		 -->
-		 
+		</tr>		 
 		<tr>
 			<th scope="row" valign="top"><?php _e('Access Permission',WPFB) ?></th>
 			<td>
@@ -85,6 +71,7 @@ $form_action = add_query_arg('page', 'wpfilebase_cats', remove_query_arg(array('
 				</div>
 			</td>
 		</tr>
+		
 		
 		<?php if($update) { ?>
 		<tr>

@@ -2,6 +2,7 @@
 class WPFB_Output {
 static $page_title = '';
 static $page_content = '';
+
 static function ProcessShortCode($args, $content = null, $tag = null)
 {
 	$id = empty($args ['id']) ? -1 : intval($args ['id']);
@@ -9,8 +10,7 @@ static function ProcessShortCode($args, $content = null, $tag = null)
 		wpfb_loadclass('File','Category');
 		$args ['id'] = $id = is_null($item = WPFB_Item::GetByPath($args['path'])) ? 0 : $item->GetId();
 	}
-	
-	
+		
 	switch($args['tag']) {
 		case 'list': return do_shortcode(self::FileList($args));
 		
@@ -74,19 +74,11 @@ static function FileList($args)
 		} elseif(is_null($tpl = WPFB_ListTpl::Get('default'))) {
 			return '';
 		}
-	}
+	}	
+
+	$cats = (empty($args['id']) || $args['id'] == -1) ? ($args['showcats'] ? WPFB_Category::GetCats() : null) : array_filter(array_map(array('WPFB_Category','GetCat'), explode(',', $args['id'])));
 	
-	if(empty($args['id']) || $args['id'] == -1) {
-		$cats = $args['showcats'] ? WPFB_Category::GetCats() : null;
-	} else {
-		$cats = array();	
-		$cat_ids = explode(',', $args['id']);	
-		foreach($cat_ids as $cat_id) {
-			if(!is_null($cat = WPFB_Category::GetCat($cat_id))) $cats[] = $cat;
-		}
-	}
-	
-	return $tpl->Generate($cats, $args['showcats'], $args['sort'], $args['num'], $args['sortcats']);
+	return $tpl->Generate($cats, $args['showcats'], $args['sort'], $args['num'], $args['sortcats'], isset($args['pagenav']) && !((int)$args['pagenav']));
 }
 
 static function FileBrowser(&$content, $root_cat_id=0, $cur_cat_id=0)
@@ -106,21 +98,7 @@ static function FileBrowser(&$content, $root_cat_id=0, $cur_cat_id=0)
 			$cur_item = WPFB_Category::GetCat($cur_cat_id);
 		}
 		
-		/*else {
-			$url = (is_ssl()?'https':'http').'://'.$_SERVER["HTTP_HOST"].$_SERVER['REQUEST_URI'];
-			if( ($qs=strpos($url,'?')) !== false ) $url = substr($url,0,$qs); // remove query string	
-			$path = trim(substr($url, strlen(WPFB_Core::GetPostUrl(WPFB_Core::GetPostId()))), '/');
-			echo $path;
-			if(!empty($path)) {
-				$cur_cat = WPFB_Item::GetByPath($path);
-				if(!is_null($cur_cat) && $cur_cat->is_file) {
-					$file =& $cur_cat;
-					print_r($file);
-					return;
-				}
-			}
-		}
-		*/
+
 		
 		// make sure cur cat is a child cat of parent
 		if(!is_null($cur_item) && !is_null($root_cat) && !$root_cat->IsAncestorOf($cur_item))
@@ -146,6 +124,11 @@ static function FileBrowser(&$content, $root_cat_id=0, $cur_cat_id=0)
 
 static function FileBrowserList(&$content, &$parents, $root_cat=null)
 {
+	if(!is_null($root_cat) && !$root_cat->CurUserCanAccess()) {
+		$content .= '<li>'.WPFB_Core::GetOpt('cat_inaccessible_msg').'</li>';
+		return;
+	}
+		
 	$cats = WPFB_Category::GetFileBrowserCats(is_null($root_cat) ? 0 : $root_cat->cat_id);
 	$open_cat = array_pop($parents);
 	$files_before_cats = WPFB_Core::GetOpt('file_browser_fbc');
@@ -157,10 +140,10 @@ static function FileBrowserList(&$content, &$parents, $root_cat=null)
 	}	
 	
 	foreach($cats as $cat) {
-		if(!$cat->CurUserCanAccess()) continue;
+		if(!$cat->CurUserCanAccess(true)) continue;
 		
 		$liclass = '';
-		if($has_children = ($cat->cat_num_files_total > 0)) $liclass .= 'hasChildren';
+		if($has_children = $cat->HasChildren()) $liclass .= 'hasChildren';
 		if($open = $cat->Equals($open_cat)) $liclass .= ' open';
 		
 		$content .= '<li id="wpfb-cat-'.$cat->cat_id.'" class="'.$liclass.'">';
@@ -193,7 +176,7 @@ static function ParseSelOpts($opt_name, $sel_tags, $uris=false)
 	for($i = 0; $i < count($opts); $i++)
 	{
 		$opt = explode('|', trim($opts[$i]));
-		if(in_array($opt[1], $sel_tags)) {
+		if(in_array(isset($opt[1])?$opt[1]:$opt[0], $sel_tags)) {
 			$o = esc_html(ltrim($opt[0], '*'));;
 			if($uris && isset($opt[2]))
 				$o = '<a href="' . esc_attr($opt[2]) . '" target="_blank">' . $o . '</a>';
@@ -275,7 +258,8 @@ static function CatSelTree($args=null, $root_cat_id = 0, $depth = 0)
 		$out .= '<option value="0"'.((0==$s_sel)?' selected="selected"':'').' style="font-style:italic;">' .(empty($s_nol) ? __('None'/*def*/) : $s_nol) . ($s_count?' ('.WPFB_File::GetNumFiles(0).')':'').'</option>';
 		$cats = &WPFB_Category::GetCats();
 		foreach($cats as $c) {
-			if($c->cat_parent <= 0 && $c->cat_id != $s_ex && $c->CurUserCanAccess())
+			if($c->cat_parent <= 0 && $c->cat_id != $s_ex && $c->CurUserCanAccess()
+			)
 				$out .= self::CatSelTree(null, $c->cat_id, 0);	
 		}
 	} else {
@@ -284,7 +268,8 @@ static function CatSelTree($args=null, $root_cat_id = 0, $depth = 0)
 
 		if(isset($cat->cat_childs)) {
 			foreach($cat->cat_childs as $c) {
-				if($c->cat_id != $s_ex && $c->CurUserCanAccess())
+				if($c->cat_id != $s_ex && $c->CurUserCanAccess()
+				)
 					$out .= self::CatSelTree(null, $c->cat_id, $depth + 1);
 			}
 		}
@@ -330,11 +315,23 @@ static function JSCatUrlsTable() {
 }
 */
 
-static function GeneratePage($title, $content) {
+static function GeneratePage($title, $content, $prepend_to_current=false) {
 	self::$page_content = $content;
 	self::$page_title = $title;
-	add_filter('the_posts',array(__CLASS__,'GeneratePagePostFilter'),9,2);
-	add_filter('edit_post_link', array('WPFB_Core', 'Nothing')); // hide edit link	
+	if($prepend_to_current) {
+		add_filter('the_content', array(__CLASS__,'GeneratePageContentFilter'), 10);
+	} else {
+		add_filter('the_posts',array(__CLASS__,'GeneratePagePostFilter'),9,2);
+		add_filter('edit_post_link', array('WPFB_Core', 'Nothing')); // hide edit link
+	}
+}
+
+static function GeneratePageContentFilter($content)
+{
+	if(empty(self::$page_content)) return $content;
+	$content = self::$page_content . $content;
+	self::$page_content = '';
+	return $content;
 }
 
 static function GeneratePagePostFilter() {
@@ -400,38 +397,90 @@ static function RoleNames($roles, $fmt_string=false) {
 	$names = array();
 	if(!empty($roles)) {
 		foreach($roles as $role)
-			$names[$role] = translate_user_role($wp_roles->roles[$role]['name']);
+		{
+				$names[$role] = translate_user_role($wp_roles->roles[$role]['name']);
+		}
 	}
 	return $fmt_string ? (empty($names) ? ("<i>".__('Everyone',WPFB)."</i>") : join(', ',$names)) : $names;
 }
 
-static function FileForm($prefix, $form_url, $vars, $secret_key=null) {
+static function FileForm($prefix, $form_url, $vars, $secret_key=null, $extended=false) {
 	$category = $vars['cat'];
 	$nonce_action = "$prefix=";
-	if(!empty($secret_key)) $nonce_action .= $secret_key
+	if(!empty($secret_key)) $nonce_action .= $secret_key;
+	
+	
+	unset($vars['adv_uploader']); // dont use adv_uploader arg for noncing! TODO
 	?>
-		<form enctype="multipart/form-data" name="<?php echo $prefix; ?>form" method="post" action="<?php echo $form_url; ?>">
+		<form enctype="multipart/form-data" name="<?php echo $prefix; ?>form" id="<?php echo $prefix; ?>form" method="post" action="<?php echo $form_url; ?>">
 		<?php 
 		foreach($vars as $n => $v) {
-			echo '<input type="hidden" name="'.esc_attr($n).'" value="'.esc_attr($v).'" />';
+			echo '<input type="hidden" name="'.esc_attr($n).'" value="'.esc_attr($v).'" id="'.$prefix.esc_attr($n).'" />';
 			$nonce_action .= "&$n=$v";
 		}
 		
 		wp_nonce_field($nonce_action, 'wpfb-file-nonce'); ?>
 			<input type="hidden" name="prefix" value="<?php echo $prefix ?>" />
-			<p>
-				<label for="<?php echo $prefix ?>file_upload"><?php _e('Choose File', WPFB) ?></label>
-				<input type="file" name="file_upload" id="<?php echo $prefix ?>file_upload" /><br /> <!--   style="width: 160px" size="10" -->
-				<small><?php printf(str_replace('%d%s','%s',__('Maximum upload file size: %d%s'/*def*/)), WPFB_Output::FormatFilesize(WPFB_Core::GetMaxUlSize())) ?></small>
-				<?php if($category == -1) { ?><br />
+			<div>
+				
+	
+				<?php if($category == -1) { ?>
+				<div>
 				<label for="<?php echo $prefix ?>file_category"><?php _e('Category') ?></label>
 				<select name="file_category" id="<?php echo $prefix; ?>file_category"><?php wpfb_loadclass('Category'); echo WPFB_Output::CatSelTree(); ?></select>
+				</div>
 				<?php } else { ?>
-				<input type="hidden" name="file_category" value="<?php echo $category; ?>" />
+				<input type="hidden" name="file_category" value="<?php echo $category; ?>" id="<?php echo $prefix ?>file_category" />
 				<?php } ?>
-			</p>	
-			<p style="text-align:right;"><input type="submit" class="button-primary" name="submit-btn" value="<?php _ex('Add New', 'file'); ?>" /></p>
+				
+				
+				<?php if(empty($adv_uploader)) { ?>
+					<label for="<?php echo $prefix ?>file_upload"><?php _e('Choose File', WPFB) ?></label>
+					<input type="file" name="file_upload" id="<?php echo $prefix ?>file_upload" /><br /> <!--   style="width: 160px" size="10" -->
+				<?php  } else {
+					$adv_uploader->Display($prefix);
+				} ?>
+				<small><?php printf(str_replace('%d%s','%s',__('Maximum upload file size: %d%s.'/*def*/)), WPFB_Output::FormatFilesize(WPFB_Core::GetMaxUlSize())) ?></small>
+				
+				<?php if(empty($auto_submit)) { ?><div style="float: right; text-align:right;"><input type="submit" class="button-primary" name="submit-btn" value="<?php _ex('Add New', 'file'); ?>" /></div>
+				<?php } ?>
+			</div>	
 		</form>	
 	<?php
+}
+
+static function GetSearchForm($action, $hidden_vars = array(), $prefix=null)
+{
+	global $wp_query;
+	
+	$searching = !empty($_GET['wpfb_s']);
+	if($searching) { // set preset value for search form
+		$sb = empty($wp_query->query_vars['s'])?null:$wp_query->query_vars['s']; 
+		$wp_query->query_vars['s'] = stripslashes($_GET['wpfb_s']);
+	}	
+	
+	ob_start();
+	echo "<!-- WPFB searchform -->";
+	get_search_form();
+	echo "<!-- /WPFB searchform -->";
+	$form = ob_get_clean();
+	
+	if($searching) $wp_query->query_vars['s'] = $sb; // restore query var s
+	
+	$form = preg_replace('/action=["\'].+?["\']/', 'action="'.esc_attr($action).'"', $form, -1, $count);
+	if($count === 0) { return "<!-- NO FORM ACTION MATCH -->";	}
+	$form = str_replace(array('name="s"',"name='s'"), array('name="wpfb_s"',"name='wpfb_s'"), $form);
+	
+	if(!empty($hidden_vars)) {
+		$gets = '';
+		foreach($hidden_vars as $name => $value) if($name != 'wpfb_s' && $name != 'wpfb_list_page') $gets.='<input type="hidden" name="'.esc_attr(stripslashes($name)).'" value="'.esc_attr(stripslashes($value)).'" />';
+		$form = str_ireplace('</form>', "$gets</form>", $form);
+	}
+	
+	if(!empty($prefix)) {
+		$form = str_replace('id="', 'id="'.$prefix, $form);
+		$form = str_replace("id='", "id='".$prefix, $form);
+	}
+	return $form;
 }
 }

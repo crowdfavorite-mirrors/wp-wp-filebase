@@ -2,6 +2,8 @@
 class WPFB_AdminLite {
 static function InitClass()
 {
+	global $parent_file;
+	
 	wp_enqueue_style(WPFB.'-admin', WPFB_PLUGIN_URI.'wp-filebase-admin.css', array(), WPFB_VERSION, 'all' );
 	
 	if (isset($_GET['page']))
@@ -17,11 +19,27 @@ static function InitClass()
 	}
 	
 	
-	wp_register_widget_control(WPFB_PLUGIN_NAME, "[DEPRECATED]".WPFB_PLUGIN_NAME .' '. __('File list'), array(__CLASS__, 'WidgetFileListControl'), array('description' => __('DEPRECATED', WPFB)));
+	//wp_register_widget_control(WPFB_PLUGIN_NAME, "[DEPRECATED]".WPFB_PLUGIN_NAME .' '. __('File list'), array(__CLASS__, 'WidgetFileListControl'), array('description' => __('DEPRECATED', WPFB)));
 	
 	add_action('admin_print_scripts', array('WPFB_AdminLite', 'PrintCKEditorPlugin'));
+
 	
 	self::CheckChangedVer();
+	
+	
+	if(basename($_SERVER['PHP_SELF']) === "plugins.php") {
+		if(isset($_GET['wpfb-uninstall']) && current_user_can('edit_files'))
+				update_option('wpfb_uninstall', !empty($_GET['wpfb-uninstall']) && $_GET['wpfb-uninstall'] != "0");
+		
+		if(get_option('wpfb_uninstall')) {
+			function wpfb_uninstall_warning() {
+				echo "
+				<div id='wpfb-warning' class='updated fade'><p><strong>".__('WP-Filebase will be uninstalled completely when deactivating the Plugin! All settings and File/Category Info will be deleted. Actual files in the upload directory will not be removed.').' <a href="'.add_query_arg('wpfb-uninstall', '0').'">'.__('Cancel')."</a></strong></p></div>
+				";
+			}
+			add_action('admin_notices', 'wpfb_uninstall_warning');
+		}
+	}
 	
 }
 
@@ -32,17 +50,30 @@ static function SetupMenu()
 	add_menu_page(WPFB_PLUGIN_NAME, WPFB_PLUGIN_NAME, 'manage_categories', $pm_tag, array(__CLASS__, 'DisplayManagePage'), WPFB_PLUGIN_URI.'images/admin_menu_icon.png' /*, $position*/ );
 	
 	$menu_entries = array(
-		array('tit'=>'Files',						'tag'=>'files',	'fnc'=>'DisplayFilesPage',	'desc'=>'View uploaded files and edit them',													'cap'=>'upload_files'),
-		array('tit'=>__('Categories'/*def*/),		'tag'=>'cats',	'fnc'=>'DisplayCatsPage',	'desc'=>'Manage existing categories and add new ones.',											'cap'=>'manage_categories'),
+		array('tit'=>'Files',						'tag'=>'files',	'fnc'=>'DisplayFilesPage',	'desc'=>'View uploaded files and edit them',
+				'cap'=>'upload_files',
+		),
+		array('tit'=>__('Categories'/*def*/),		'tag'=>'cats',	'fnc'=>'DisplayCatsPage',	'desc'=>'Manage existing categories and add new ones.',
+				'cap'=>'manage_categories',
+		),
+		
 		//array('tit'=>'Sync Filebase', 'hide'=>true, 'tag'=>'sync',	'fnc'=>'DisplaySyncPage',	'desc'=>'Synchronises the database with the file system. Use this to add FTP-uploaded files.',	'cap'=>'upload_files'),
-		array('tit'=>'Edit Stylesheet',				'tag'=>'css',	'fnc'=>'DisplayStylePage',	'desc'=>'Edit the CSS for the file template',													'cap'=>'edit_themes'),
-		array('tit'=>'Manage Templates',			'tag'=>'tpls',	'fnc'=>'DisplayTplsPage',	'desc'=>'Edit custom file list templates',														'cap'=>'edit_themes'),
-		array('tit'=>__('Settings'),				'tag'=>'sets',	'fnc'=>'DisplaySettingsPage','desc'=>'Change Settings',													'cap'=>'manage_options'),
+		
+		array('tit'=>'Edit Stylesheet',				'tag'=>'css',	'fnc'=>'DisplayStylePage',	'desc'=>'Edit the CSS for the file template',
+				'cap'=>'edit_themes',
+		),
+		
+		array('tit'=>'Manage Templates',			'tag'=>'tpls',	'fnc'=>'DisplayTplsPage',	'desc'=>'Edit custom file list templates',
+				'cap'=>'edit_themes',
+		),
+		
+		array('tit'=>__('Settings'),				'tag'=>'sets',	'fnc'=>'DisplaySettingsPage','desc'=>'Change Settings',
+														'cap'=>'manage_options'),
 		array('tit'=>'Donate &amp; Feature Request','tag'=>'sup',	'fnc'=>'DisplaySupportPage','desc'=>'If you like this plugin and want to support my work, please donate. You can also post your ideas making the plugin better.', 'cap'=>'manage_options'),
 	);
 	
 	foreach($menu_entries as $me)
-	{		
+	{
 		$callback = array(__CLASS__, $me['fnc']);
 		add_submenu_page($pm_tag, WPFB_PLUGIN_NAME.' - '.__($me['tit'], WPFB), empty($me['hide'])?__($me['tit'], WPFB):null, empty($me['cap'])?'read':$me['cap'], WPFB_OPT_NAME.'_'.$me['tag'], $callback);
 	}
@@ -69,12 +100,6 @@ static function MceButtons($buttons) {
 	return $buttons;
 }
 
-static function WidgetFileListControl()
-{
-	WPFB_Core::LoadLang();
-	wpfb_loadclass('Widget');
-	WPFB_Widget::FileListCntrl();
-}
 
 private static function CheckChangedVer()
 {
@@ -103,4 +128,5 @@ static function PrintCKEditorPlugin() {
 </script>
 	<?php
 }
+
 }

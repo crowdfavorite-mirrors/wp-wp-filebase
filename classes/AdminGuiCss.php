@@ -45,19 +45,11 @@ static function Display()
 			} elseif(!empty($_POST['submit']) && !empty($_POST['newcontent'])) {
 				// write
 				$newcontent = stripslashes($_POST['newcontent']);
-				$f = fopen($css_path_edit, 'w+');
-				if ($f !== false) {
-					fwrite($f, $newcontent);
-					fclose($f);
-					$exists = true;
-				}
+				$exists = (file_put_contents($css_path_edit, $newcontent) !== false);
 			}
 
 			$fpath = $exists ? $css_path_edit : $css_path_default;
-			$f = fopen($fpath , 'r');
-			$content = fread($f, filesize($fpath));
-			fclose($f);
-			$content = htmlspecialchars($content);
+			$content = esc_html(file_get_contents($fpath));
 			?>
 <form name="csseditor" id="csseditor" action="<?php echo $clean_uri ?>&amp;action=edit_css" method="post">
 		 <div><textarea cols="70" rows="25" name="newcontent" id="newcontent" tabindex="1" class="codepress css" style="width: 98%;"><?php echo $content ?></textarea>

@@ -9,10 +9,10 @@ class WPFB_Category extends WPFB_Item {
 	var $cat_folder;
 	var $cat_path;
 	var $cat_parent = 0;
-	//var $cat_files;
 	var $cat_num_files = 0;
 	var $cat_num_files_total = 0;
 	var $cat_user_roles;
+	var $cat_owner = 0;
 	var $cat_icon;
 	var $cat_exclude_browser = 0;
 	var $cat_order;
@@ -75,7 +75,7 @@ class WPFB_Category extends WPFB_Item {
 	{
 		return WPFB_Category::GetCats(
 		"WHERE cat_exclude_browser <> '1' AND cat_parent = $parent_id ". 
-		"ORDER BY ".WPFB_Core::GetOpt('file_browser_cat_sort_by').' '.(WPFB_Core::GetOpt('file_browser_cat_sort_dir')?'DESC':'ASC'));
+		"ORDER BY ".WPFB_Core::$settings->file_browser_cat_sort_by.' '.(WPFB_Core::$settings->file_browser_cat_sort_dir?'DESC':'ASC'));
 	}
 	
 	static function CompareName($a, $b) { return $a->cat_name > $b->cat_name; }
@@ -99,12 +99,12 @@ class WPFB_Category extends WPFB_Item {
 
 	function NotifyFileAdded($file)
 	{	
-		if($this->IsAncestorOf($file))
-		{
+		//if($this->IsAncestorOf($file)) // Removed for secondary categories!
+		//{
 			if($file->file_category == $this->cat_id) $this->cat_num_files++;
 			$this->cat_num_files_total++;
 			if(!$this->locked) $this->DBSave();
-		}
+		//}
 		
 		$parent = $this->GetParent();
 		if($parent) $parent->NotifyFileAdded($file);
@@ -144,6 +144,11 @@ class WPFB_Category extends WPFB_Item {
 		return $cats;
 	}
 	
+	function HasChildren($cats_only=false)
+	{
+ 		return $cats_only ? (count($this->GetChildCats())>0) : ($this->cat_num_files_total > 0);
+	}
+	
 	function Delete()
 	{	
 		global $wpdb;
@@ -171,10 +176,11 @@ class WPFB_Category extends WPFB_Item {
 			case 'cat_parent':
 			case 'cat_parent_name':	return is_object($parent =& $this->GetParent()) ? $parent->cat_name : '';
 			case 'cat_icon_url':	return $this->GetIconUrl();
-			case 'cat_small_icon': 	$esc=false; return '<img align="" src="'.$this->GetIconUrl('small').'" style="height:32px;vertical-align:middle;" />';
+			case 'cat_small_icon': 	$esc=false; return '<img src="'.$this->GetIconUrl('small').'" style="height:'.WPFB_Core::$settings->small_icon_size.'px;vertical-align:middle;" />';
 			case 'cat_num_files':		return $this->cat_num_files;
 			case 'cat_num_files_total':	return $this->cat_num_files_total;
-			//case 'cat_required_level':	return ($this->cat_required_level - 1);			
+			//case 'cat_required_level':	return ($this->cat_required_level - 1);
+			case 'cat_user_can_access': return $this->CurUserCanAccess();
 			case 'uid':					return self::$tpl_uid;				
 		}
 		return isset($this->$name) ? $this->$name : '';
@@ -185,6 +191,7 @@ class WPFB_Category extends WPFB_Item {
 		$v = $this->_get_tpl_var($name, $esc);
 		return $esc?esc_html($v):$v;
 	}
+	
 }
 
 ?>

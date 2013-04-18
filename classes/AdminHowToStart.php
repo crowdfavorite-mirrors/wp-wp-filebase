@@ -1,6 +1,6 @@
 <?php class WPFB_AdminHowToStart {
 
-function Display()
+static function Display()
 {
 	?>
 <script type="text/javascript">

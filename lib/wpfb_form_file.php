@@ -20,17 +20,20 @@ $action = ($update ? 'updatefile' : 'addfile');
 $title = $update ? __('Edit File', WPFB) : __('Add File', WPFB);
 
 $default_roles = WPFB_Core::GetOpt('default_roles');
-$user_roles = ($update || empty($default_roles)) ? $file->GetUserRoles() : $default_roles;
+$user_roles = ($update || empty($default_roles)) ? $file->GetReadPermissions() : $default_roles;
 $file_members_only = !empty($user_roles);
 
-$form_url = $in_editor ? remove_query_arg(array('file_id', 'page', 'action')) : add_query_arg('page', 'wpfilebase_files', admin_url('admin.php'));
+if(empty($form_url))
+	$form_url = $in_editor ? remove_query_arg(array('file_id', 'page', 'action')) : add_query_arg('page', 'wpfilebase_files', admin_url('admin.php'));
 
 if(!empty($_GET['redirect_to']))
-	$form_url = add_query_arg(array('redirect' => 1, 'redirect_to' => $_GET['redirect_to']), $form_url);
-	
-$nonce_action = WPFB."-".$action;
-if($update) $nonce_action .= ($multi_edit ? $item_ids : $file->file_id);
-if($in_editor) $nonce_action .= "-editor";
+	$form_url = add_query_arg(array('redirect' => 1, 'redirect_to' => urlencode($_GET['redirect_to'])), $form_url);
+
+if(empty($nonce_action)) {
+	$nonce_action = WPFB."-".$action;
+	if($update) $nonce_action .= ($multi_edit ? $item_ids : $file->file_id);
+	if($in_editor) $nonce_action .= "-editor";
+}
 
 if($update)
 	$file_category = $file->file_category;
@@ -39,19 +42,28 @@ else
 
 //$file_category = ($update || empty($_REQUEST['file_category'])) ? $file->file_category : $_REQUEST['file_category'];
 
-$adv_uploader = (version_compare(get_bloginfo('version'), '3.2.1') <= 0) ? 'SWFUpload' : 'PLUpload';
+if(!$update) $file->file_direct_linking = WPFB_Core::$settings->default_direct_linking;
+
+wpfb_loadclass('AdvUploader');
+$adv_uploader = WPFB_AdvUploader::Create($form_url, $update);
+
+
+if(isset($_GET['visual_editor'])) {
+	global $user_ID;
+	update_user_option($user_ID, WPFB.'_visual_editor', (int)$_GET['visual_editor']);
+}
+$visual_editor = get_user_option(WPFB.'_visual_editor') && !$in_widget;
 
 ?>
 
-<?php wpfb_call($adv_uploader,'Scripts'); ?>
+<?php $adv_uploader->PrintScripts(); ?>
 			
 <form enctype="multipart/form-data" name="<?php echo $action ?>" id="<?php echo $action ?>" method="post" action="<?php echo $form_url ?>" class="validate">
 
 <?php
 if(!$in_widget) {
 	if($in_editor) {
-		?><div style="float: right;"><a style="font-style:normal;" href="<?php echo add_query_arg('exform', ($exform ? '0' : '1')); ?>"><?php _e($exform ? 'Simple Form' : 'Extended Form', WPFB) ?></a></div><?php		
-		?><h3 class="media-title"><?php echo $title ?></h3><?php
+		?><div style="float: right;"><a style="font-style:normal;" href="<?php echo add_query_arg('exform', ($exform ? '0' : '1')); ?>"><?php _e($exform ? 'Simple Form' : 'Extended Form', WPFB) ?></a></div><h3 class="media-title"><?php echo $title ?></h3><?php
 	} else {
 		echo "<h2>".$title;
 		?><a style="font-style:normal;" href="<?php echo add_query_arg('exform', ($exform ? '0' : '1')).'#'.$action; ?>" class="add-new-h2"><?php _e($exform ? 'Simple Form' : 'Extended Form', WPFB) ?></a><?php
@@ -60,8 +72,9 @@ if(!$in_widget) {
 }
 ?>
 
+<?php	wp_print_scripts('utils'); ?>
+		
 <script type="text/javascript">
-//<![CDATA[
 var uploaderMode = 0;
 
 function WPFB_switchFileUpload(i)
@@ -79,8 +92,11 @@ function WPFB_switchFileUpload(i)
 jQuery(document).ready(function($){	
 	$('#file-upload-progress').hide();
 	$('#cancel-upload').hide();
-
-	WPFB_switchUploader(getUserSetting('wpfb_adv_uploader'));
+	
+<?php if(isset($_GET['flash'])) { ?>
+		WPFB_switchUploader(<?php echo (int)$_GET['flash']; ?>);
+<?php } else { ?>
+	WPFB_switchUploader((typeof(getUserSetting) != 'function') ? true : getUserSetting('wpfb_adv_uploader', true));
 	$('#file-upload-wrap').bind('click.uploader', function(e) {
 		var target = $(e.target);
 
@@ -92,6 +108,12 @@ jQuery(document).ready(function($){
 			return false;
 		}
 	});
+<?php } ?>
+
+//	jQuery("#file_description").addClass("mceEditor");
+//	if ( typeof( tinyMCE ) == "object" && typeof( tinyMCE.execCommand ) == "function" ) {
+//		tinyMCE.execCommand("mceAddControl", false, "file_description");
+//	}
 	
 	$('#file_tags').keyup(function() {
 		var tags = $(this).val();
@@ -140,17 +162,17 @@ jQuery(document).ready(function($){
 });
 
 function WPFB_switchUploader(adv) {
-	if (adv) {
+	if (adv && adv != "0") {
 		jQuery('#flash-upload-ui').show();
 		jQuery('#html-upload-ui').hide();
-		setUserSetting('wpfb_adv_uploader', '1');
+		setUserSetting('wpfb_adv_uploader', 1);
 		if ( typeof(uploader) == 'object' )
 			uploader.refresh();
 		if(typeof(swfuploadPreLoad) == 'function') swfuploadPreLoad();
 	} else {
 		jQuery('#flash-upload-ui').hide();
 		jQuery('#html-upload-ui').show();
-		deleteUserSetting('wpfb_adv_uploader');
+		setUserSetting('wpfb_adv_uploader', 0);
 	}
 }
 
@@ -164,13 +186,11 @@ function WPFB_addTag(tag)
 	inp.focus();
 }
 
-
-//]]>
 </script>
 
 
-<input type="hidden" name="action" value="<?php echo $action ?>" />
-<?php if($update) { ?><input type="hidden" name="file_id" value="<?php echo $multi_edit ? $item_ids : $file->file_id; ?>" /><?php } ?>
+<input type="hidden" name="action" id="file_form_action" value="<?php echo $action ?>" />
+<input type="hidden" name="file_id" id="file_id" value="<?php echo $update ? ($multi_edit ? $item_ids : $file->file_id) : ""; ?>" />
 <?php wp_nonce_field($nonce_action, 'wpfb-file-nonce'); ?>
 <table class="form-table">
 <?php if(!$multi_edit) { ?>
@@ -190,8 +210,10 @@ function WPFB_addTag(tag)
 					printf( __('Try the <a href="%s">Flash uploader</a> instead.'), esc_url(add_query_arg('flash', 1)) );
 					?>
 				</div>
-			 	<div id="flash-upload-ui"><?php wpfb_call($adv_uploader,'Display',$form_url); ?></div> <!--  flash-upload-ui -->
-				<?php if($update) { echo '<div><b><a href="'.$file->GetUrl().'">' . $file->file_name . '</a></b> (' . $file->GetFormattedSize() . ', '.wpfb_call('Download', 'GetFileType', $file->file_name).', MD5: <code>'.$file->file_hash.'</code>)</div>'; } ?>
+			 	<div id="flash-upload-ui"><?php $adv_uploader->Display(); ?></div> <!--  flash-upload-ui -->
+				<?php if($update) { echo '<div>'.__('Rename').': '; ?>
+				<input name="file_rename" id="file_rename" type="text" value="<?php echo esc_attr($file->file_name); ?>" style="width:280px;" /><br />
+				<?php echo ' (' . $file->GetFormattedSize() . ', '.wpfb_call('Download', 'GetFileType', $file->file_name).', MD5: <code>'.$file->file_hash.'</code>)</div>'; } ?>
 			</div>
 			<div id="file-remote-wrap" <?php echo ($file->IsRemote() ? '' : 'class="hidden"'); ?>>
 				<label for="file_remote_uri"><?php _e('File URL') ?></label>
@@ -209,11 +231,12 @@ function WPFB_addTag(tag)
 		<th scope="row" valign="top"><label for="file_upload_thumb"><?php _e('Thumbnail'/*def*/) ?></label></th>
 		<td class="form-field" colspan="3"><input type="file" name="file_upload_thumb" id="file_upload_thumb" />
 		<br /><?php _e('You can optionally upload a thumbnail here. If the file is a valid image, a thumbnail is generated automatically.', WPFB); ?>
-		<?php if($update && !empty($file->file_thumbnail)) { ?>
+		<div style="<?php if(empty($file->file_thumbnail)) echo "display:none;"; ?>" id="file_thumbnail_wrap">
 			<br /><img src="<?php echo esc_attr($file->GetIconUrl()); ?>" /><br />
-			<b><?php echo $file->file_thumbnail; ?></b><br />
-			<label for="file_delete_thumb"><?php _e('Delete') ?></label><input type="checkbox" value="1" name="file_delete_thumb" id="file_delete_thumb" style="display:inline; width:30px;" />
-		<?php } ?>
+			<b id="file_thumbnail_name"><?php echo $file->file_thumbnail; ?></b><br />
+			<?php if($update && !empty($file->file_thumbnail)) { ?> <label for="file_delete_thumb"><?php _e('Delete') ?></label><input type="checkbox" value="1" name="file_delete_thumb" id="file_delete_thumb" style="display:inline; width:30px;" />
+			<?php } ?>
+		</div>
 		</td>
 		<?php } else { ?><th scope="row"></th><td colspan="3"><?php _e('The following fields are optional.', WPFB) ?></td><?php } ?>
 	</tr>
@@ -242,8 +265,9 @@ function WPFB_addTag(tag)
 	<tr class="form-field">
 		<?php } ?>
 		<th scope="row" valign="top"><label for="file_category"><?php _e('Category') ?></label></th>
-		<td><select name="file_category" id="file_category" class="postform" onchange="WPFB_formCategoryChanged();"><?php echo WPFB_Output::CatSelTree(array('selected'=>$file_category)) ?></select></td>
-		<?php if($exform) { ?>
+		<td><select name="file_category" id="file_category" class="postform" onchange="WPFB_formCategoryChanged();"><?php echo WPFB_Output::CatSelTree(array('selected'=>$file_category
+)) ?></select></td>
+		<?php if($exform && !empty(WPFB_Core::$settings->licenses)) { ?>
 		<th scope="row" valign="top"><label for="file_license"><?php _e('License', WPFB) ?></label></th>
 		<td><select name="file_license" id="file_license" class="postform"><?php echo  WPFB_Admin::MakeFormOptsList('licenses', $file ? $file->file_license : null, true) ?></select></td>
 		<?php } ?>
@@ -283,13 +307,24 @@ function WPFB_addTag(tag)
 			<fieldset><legend class="hidden"><?php _e('Direct linking') ?></legend>
 				<label title="<?php _e('Yes') ?>"><input type="radio" name="file_direct_linking" value="1" <?php checked('1', $file->file_direct_linking); ?>/> <?php _e('Allow direct linking', WPFB) ?></label><br />
 				<label title="<?php _e('No') ?>"><input type="radio" name="file_direct_linking" value="0" <?php checked('0', $file->file_direct_linking); ?>/> <?php _e('Redirect to post', WPFB) ?></label>
+
 			</fieldset>
 		</td>
 		<?php } ?>
 	</tr>
-	<tr class="form-field">
-		<th scope="row" valign="top"><label for="file_description"><?php _e('Description') ?></label></th>
-		<td colspan="3"><textarea name="file_description" id="file_description" rows="5" cols="50" style="width: 97%;"><?php echo esc_html($file->file_description); ?></textarea></td>
+	<tr <?php if(!$visual_editor) { ?>class="form-field"<?php } ?>>
+		<th scope="row" valign="top"><label for="file_description"><?php _e('Description') ?></label>
+		<?php if(!$in_widget) { ?><br /><br />
+		<a style="font-style:normal; font-size:9px; padding:3px; margin:0;" href="<?php echo add_query_arg('visual_editor', ($visual_editor ? '0' : '1')).'#'.$action; ?>" class="add-new-h2"><?php _e($visual_editor ? 'Simple Editor' : 'Visual Editor', WPFB) ?></a>
+		<?php } ?>
+		</th>
+		<td colspan="3">
+		<?php if($visual_editor) {
+			wp_editor($file->file_description, 'file_description', array('media_buttons' => false));
+		} else { ?>
+			<textarea name="file_description" id="file_description" rows="5" cols="50" style="width: 97%;"><?php echo esc_html($file->file_description); ?></textarea>
+		<?php } ?>
+		</td>
 	</tr>
 	<tr class="form-field">
 		<th scope="row" valign="top"><label for="file_tags"><?php _e('Tags') ?></label></th>
@@ -315,9 +350,7 @@ function WPFB_addTag(tag)
 		<td><input type="checkbox" name="file_offline" id="file_offline" value="1" <?php checked('1', $file->file_offline); ?>/> <label for="file_offline"><?php _e('Offline', WPFB) ?></label></td>
 		
 	</tr>
-	<?php } ?>
-	
-	<?php 
+	<?php }
 	$custom_fields = WPFB_Core::GetCustomFields();
 	foreach($custom_fields as $ct => $cn) {
 		$hid = 'file_custom_'.esc_attr($ct);

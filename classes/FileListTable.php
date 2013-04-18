@@ -20,26 +20,23 @@ class WPFB_FileListTable extends WP_List_Table {
     function get_columns(){
         $columns = array(
             'cb'			=> '<input type="checkbox" />', //Render a checkbox instead of text
-            'id'   			=> 'Title',
-        	'display_name'  => __('',WPFB),
-        	'name'     		=> __('',WPFB),
-        	'size'     		=> __('',WPFB),
-        	'desc'     		=> __('',WPFB),
-        	'cat'     		=> __('',WPFB),
-        	'perm'     		=> __('',WPFB),
-        	'owner'     	=> __('',WPFB),
-        	'date'     		=> __('',WPFB),
-        	'hits'    		=> __('',WPFB),
-        	'dltime'     	=> __('',WPFB)
         );
         return $columns;
     }
     
     function get_sortable_columns() {
         $sortable_columns = array(
-            'title'     => array('title',true),     //true means its already sorted
-            'rating'    => array('rating',false),
-            'director'  => array('director',false)
+        	'id'   			=> _e('ID'/*def*/),
+        	'display_name'  => _e('Name'/*def*/),
+        	'name'     		=> _e('Filename', WPFB),
+        	'size'     		=> _e('Size'/*def*/),
+        	//'description'  	=> _e('Description'/*def*/),
+        	'category_name' => _e('Category'/*def*/),
+        	'user_roles'    => _e('Access Permission',WPFB),
+        	'added_by'     	=> _e('Owner',WPFB),
+        	'date'     		=> _e('Date'/*def*/),
+        	'hits'    		=> _e('Hits', WPFB),
+        	'last_dl_time'  => _e('Last download', WPFB)
         );
         return $sortable_columns;
     }
@@ -57,29 +54,67 @@ class WPFB_FileListTable extends WP_List_Table {
         );
     }
     
-    function column_title($item){
+    function column_display_name($item){
         $actions = array(
-            'edit'      => '<a href="'.$item->GetEditUrl().'">"'.__('Edit').'</a>',
-            'delete'    => '<a href="'.$item->GetEditUrl().'">"'.__('Delete').'</a>',
+            'edit'      => '<a href="'.esc_attr($item->GetEditUrl()).'">"'.__('Edit').'</a>',
+            'delete'    => '<a href="">"'.__('Delete').'</a>',
         );
-        /*
-<?php if(!empty($file->file_thumbnail)) { ?><img src="<?php echo esc_attr($file->GetIconUrl()); ?>" height="32" /><?php } ?>
-							<span><?php if($file->IsRemote()){echo '*';} echo esc_html($file->file_display_name); ?></span>
-							
-        */
         
-        //Return the title contents
-        return sprintf('%1$s <span style="color:silver">(id:%2$s)</span>%3$s',
-            /*$1%s*/ $item->GetTitle(),
-            /*$2%s*/ $item->GetId(),
-            /*$3%s*/ $this->row_actions($actions)
-        );
+        $col = '<a class="row-title" href="'.esc_attr($file->GetEditUrl()).'" title="'.esc_attr(sprintf(__('Edit &#8220;%s&#8221;'),$file->GetTitle())).'">';
+        if(!empty($file->file_thumbnail))
+        	$col .= '<img src="'.esc_attr($file->GetIconUrl()).'" height="32" />';
+        $col .= '<span>'.($file->IsRemote()?'*':'').esc_html($file->GetTitle(32)).'</span>';
+        $col .= '</a>';							
+        $col .= $this->row_actions($actions);
+        return $col;
     }
     
+    function column_name($file)
+    {
+    	return '<a href="'.esc_attr($file->GetUrl()).'">'.esc_html($file->file_name).'</a>';
+    }
+    
+    function column_size($file)
+    {
+    	return WPFB_Output::FormatFilesize($file->file_size);
+    }
+    
+    function column_category_name($file)
+    {
+    	$cat = $file->GetParent();
+    	return (!is_null($cat) ? ('<a href="'.esc_attr($cat->GetEditUrl()).'">'.esc_html($file->file_category_name).'</a>') : '-');
+    }
+    
+    function column_user_roles($file)
+    {
+		return WPFB_Output::RoleNames($file->GetReadPermissions(), true);
+    }
+    
+    function column_added_by($file)
+    {
+    	return (empty($file->file_added_by) || !($usr = get_userdata($file->file_added_by))) ? '-' : esc_html($usr->user_login);
+    }
+    
+    function column_date($file)
+    {
+    	return $file->GetFormattedDate();
+    }
+    
+    function column_hits($file)
+    {
+    	return $file->file_hits;
+    }
+    
+    function column_last_dl_time($file)
+    {
+    	return ( (!empty($file->file_last_dl_time) && $file->file_last_dl_time > 0) ? mysql2date(get_option('date_format'), $file->file_last_dl_time) : '-');
+    }
     
     function get_bulk_actions() {
         $actions = array(
-            'delete'    => 'Delete'
+            'delete'    => 'Delete',
+            'edit' => 'Change Category',
+        	''
         );
         return $actions;
     }

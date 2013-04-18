@@ -54,6 +54,12 @@ static function Display()
 						
 					case 'roles':
 						$post[$opt_tag] = array_values(array_filter($post[$opt_tag]));
+						// the following must not be removed! if the roles array is empty, permissions are assumed to be set for everyone!
+						// so make sure that the admin is explicitly set!
+						if(!empty($opt_data['not_everyone']) && !in_array('administrator', $post[$opt_tag])) {
+							if(!is_array($post[$opt_tag])) $post[$opt_tag] = array();
+							array_unshift($post[$opt_tag],'administrator');
+						}
 						break;
 					
 					case 'cat':
@@ -100,6 +106,14 @@ static function Display()
 			}
 		}
 		
+		
+		$fb_sub_pages = get_pages(array('child_of' => $options['file_browser_post_id']));
+		if(count($fb_sub_pages))
+		{
+			$messages[] = sprintf(__('Warning: The Filebrowser page <b>%s</b> has at least one subpage <b>%s</b>. This will cause unexpected behavior, since all requests to the subpages are redirected to the File Browser Page. Please choose a Page that does not have any subpages for File Browser.',WPFB),
+						get_the_title($post['file_browser_post_id']), get_the_title($fb_sub_pages[0]->ID));
+		}
+		
 		// save options
 		foreach($option_fields as $opt_tag => $opt_data)
 		{
@@ -128,6 +142,7 @@ static function Display()
 		
 		$old_options = get_option(WPFB_OPT_NAME);
 		update_option(WPFB_OPT_NAME, $options);
+		WPFB_Core::$settings = (object)$options;
 		
 		$messages += WPFB_Admin::SettingsUpdated($old_options, $options);
 		
@@ -148,8 +163,6 @@ static function Display()
 		$rel_path = substr($rel_path, strpos($rel_path, '/')+1);
 		$messages[] = __(sprintf('NOTICE: The upload path <code>%s</code> is rooted to the filesystem. You should remove the leading slash if you want to use a folder inside your Wordpress directory (i.e: <code>%s</code>)', $upload_path, $rel_path), WPFB);
 	}
-	
-	WPFB_Admin::FlushRewriteRules();
 	
 	$action_uri = admin_url('admin.php') . '?page=' . $_GET['page'] . '&amp;updated=true';
 
@@ -182,6 +195,7 @@ jQuery(document).ready( function() {
 </script>
 
 <div class="wrap">
+<div id="icon-options-general" class="icon32"><br /></div>
 <h2><?php echo WPFB_PLUGIN_NAME; echo ' '; _e("Settings"/*def*/); ?></h2>
 
 <form method="post" action="<?php echo $action_uri; ?>" name="wpfilebase-options">
@@ -191,20 +205,27 @@ jQuery(document).ready( function() {
 	</p>
 	<?php
 	
-	$misc_tags = array('hide_links','base_auto_thumb','cron_sync','fext_blacklist','disable_id3','search_id3','thumbnail_path','use_path_tags','no_name_formatting');
+	$misc_tags = array('disable_id3','search_id3','thumbnail_path','use_path_tags','no_name_formatting');
 	if(function_exists('wp_admin_bar_render'))
 		$misc_tags[] = 'admin_bar';
 	
+	
+	$limits = array('bitrate_unregistered', 'bitrate_registered', 'traffic_day', 'traffic_month', 'traffic_exceeded_msg', 'file_offline_msg', 'daily_user_limits', 'daily_limit_subscriber', 'daily_limit_contributor', 'daily_limit_author', 'daily_limit_editor', 'daily_limit_exceeded_msg');
+	
+	
+	
 	$option_categories = array(
 		__('Common', WPFB)					=> array('upload_path','search_integration' /*'cat_drop_down'*/),
-		__('Display', WPFB)					=> array('file_date_format','thumbnail_size','auto_attach_files', 'attach_loop','attach_pos', 'filelist_sorting', 'filelist_sorting_dir', 'filelist_num', /* TODO: remove? 'parse_tags_rss',*/ 'decimal_size_format'),
-		__('File Browser',WPFB)				=> array('file_browser_post_id','file_browser_cat_sort_by','file_browser_cat_sort_dir','file_browser_file_sort_by','file_browser_file_sort_dir','file_browser_fbc', 'late_script_loading','disable_footer_credits','footer_credits_style'),
-		__('Download', WPFB)				=> array(
-												'disable_permalinks', 'download_base', 'force_download', 'range_download', 'http_nocache', 'ignore_admin_dls', 'accept_empty_referers','allowed_referers','dl_destroy_session'),
-		__('Form Presets', WPFB)			=> array('default_author','default_roles', 'default_cat', 'languages', 'platforms', 'licenses', 'requirements', 'custom_fields'),
-		__('Limits', WPFB)					=> array('bitrate_unregistered', 'bitrate_registered', 'traffic_day', 'traffic_month', 'traffic_exceeded_msg', 'file_offline_msg', 'daily_user_limits', 'daily_limit_subscriber', 'daily_limit_contributor', 'daily_limit_author', 'daily_limit_editor', 'daily_limit_exceeded_msg'),
-		__('Security', WPFB)				=> array('allow_srv_script_upload', 'frontend_upload', 'hide_inaccessible', 'inaccessible_msg', 'inaccessible_redirect', 'login_redirect_src', 'protect_upload_path', 'private_files'),
+		__('Display', WPFB)					=> array('file_date_format','thumbnail_size','auto_attach_files', 'attach_loop','attach_pos', 'filelist_sorting', 'filelist_sorting_dir', 'filelist_num', /* TODO: remove? 'parse_tags_rss',*/ 'decimal_size_format','search_result_tpl'),
+		__('File Browser',WPFB)				=> array('file_browser_post_id','file_browser_cat_sort_by','file_browser_cat_sort_dir','file_browser_file_sort_by','file_browser_file_sort_dir','file_browser_fbc', 'late_script_loading','small_icon_size',
+		'disable_footer_credits','footer_credits_style',
+		),
+		__('Download', WPFB)				=> array('hide_links', 'disable_permalinks', 'download_base', 'force_download', 'range_download', 'http_nocache', 'ignore_admin_dls', 'accept_empty_referers','allowed_referers' /*,'dl_destroy_session'*/,'use_fpassthru'),
+		__('Form Presets', WPFB)			=> array('default_author','default_roles', 'default_cat', 'default_direct_linking','languages', 'platforms', 'licenses', 'requirements', 'custom_fields'),
+		__('Limits', WPFB)					=> $limits,
+		__('Security', WPFB)				=> array('allow_srv_script_upload', 'fext_blacklist', 'frontend_upload', 'hide_inaccessible', 'inaccessible_msg', 'inaccessible_redirect', 'cat_inaccessible_msg', 'login_redirect_src', 'protect_upload_path', 'private_files'),
 		__('Templates and Scripts', WPFB)	=> array('template_file', 'template_cat', 'dlclick_js'),
+		__('Sync',WPFB)						=> array('cron_sync', 'base_auto_thumb', 'remove_missing_files'),
 		__('Misc')							=> $misc_tags,
 	);
 	?>
@@ -219,7 +240,7 @@ jQuery(document).ready( function() {
 	$n = 0;
 	foreach($option_categories as $opt_cat => $opt_cat_fields) {
 		//echo "\n".'<h3>'.$opt_cat.'</h3>';	
-		echo "\n\n".'<div id="'. sanitize_title($opt_cat) .'" class="wpfilebase-opttab"><table class="form-table">';
+		echo "\n\n".'<div id="'. sanitize_title($opt_cat) .'" class="wpfilebase-opttab"><h3>'.$opt_cat.'</h3><table class="form-table">';
 		foreach($opt_cat_fields as $opt_tag)
 		{
 			
@@ -268,12 +289,12 @@ jQuery(document).ready( function() {
 				case 'select':
 					echo '<select name="' . $opt_tag . '" id="' . $opt_tag . '">';
 					foreach($field_data['options'] as $opt_v => $opt_n)
-						echo '<option value="' . esc_attr($opt_v) . '"' . (($opt_v == $opt_val) ? ' selected="selected" ' : '') . $style_class . '>' . (!is_numeric($opt_v) ? (esc_html($opt_v) . ': ') : '') . esc_html($opt_n) . '</option>';
+						echo '<option value="' . esc_attr($opt_v) . '"' . (($opt_v == $opt_val) ? ' selected="selected" ' : '') . $style_class . '>' . ((!is_numeric($opt_v) && $opt_v !== $opt_n) ? (esc_html($opt_v) . ': ') : '') . esc_html($opt_n) . '</option>';
 					echo '</select>';
 					break;
 					
 				case 'roles':
-					WPFB_Admin::RolesCheckList($opt_tag, $opt_val);
+					WPFB_Admin::RolesCheckList($opt_tag, $opt_val, empty($field_data['not_everyone']));
 					break;
 					
 				case 'cat':

@@ -2,23 +2,31 @@
 class WPFB_GetID3 {
 	static $engine;
 	
-	static function InitClass()
+	static function GetEngine()
 	{
-		require_once(WPFB_PLUGIN_ROOT.'extras/getid3/getid3.php');		
-		self::$engine = new getID3;
-	//$getID3->setOption(array(
-	//	'option_md5_data'  => $AutoGetHashes,
-	//	'option_sha1_data' => $AutoGetHashes,
-	//));		
+		if(!self::$engine) {
+			if(!class_exists('getID3')) {
+				$tmp_dir = WPFB_Core::UploadDir().'/.tmp';
+				if(!is_dir($tmp_dir)) @mkdir($tmp_dir);
+				define('GETID3_TEMP_DIR', $tmp_dir.'/');
+				unset($tmp_dir);
+				require_once(WPFB_PLUGIN_ROOT.'extras/getid3/getid3.php');		
+			}
+			self::$engine = new getID3;
+		}
+		return self::$engine;
 	}
 	
 	static function AnalyzeFile($file)
 	{
 		$filename = is_string($file) ? $file : $file->GetLocalPath();
 		
-		if(WPFB_Core::GetOpt('disable_id3')) $info = array();
-		else $info =& self::$engine->analyze($filename);
+		$info = WPFB_Core::GetOpt('disable_id3') ? array() : self::GetEngine()->analyze($filename);
 		
+		if(!empty($_GET['debug'])) {
+			wpfb_loadclass('Sync');
+			WPFB_Sync::PrintDebugTrace("file_analyzed");
+		}
 		return $info;
 	}
 	
@@ -46,7 +54,7 @@ class WPFB_GetID3 {
 	
 	static function UpdateCachedFileInfo($file)
 	{
-		$info =& self::AnalyzeFile($file);
+		$info = self::AnalyzeFile($file);
 		self::StoreFileInfo($file->GetId(), $info);
 		return $info;
 	}
@@ -109,11 +117,15 @@ class WPFB_GetID3 {
 			if(is_array($val) || is_object($val)) {
 				self::getKeywords($val, $keywords);
 				self::getKeywords(array_keys($val), $keywords); // this is for archive files, where file names are array keys
-			} else if(is_string($val)) {				
-				if(!in_array($val, $keywords))
-					array_push($keywords, $val);
+			} else if(is_string($val)) {
+				$val = explode(' ', strtolower(preg_replace('/\W+/',' ',$val)));
+				foreach($val as $v) {
+					if(!in_array($v, $keywords))
+						array_push($keywords, $v);
+				}
 			}
 		}
 		return $keywords;
 	}
+
 }
