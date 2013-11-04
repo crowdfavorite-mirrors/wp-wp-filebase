@@ -1,4 +1,3 @@
-
 $.extend( DataTable.ext.oStdClasses, {
 	"sTable": "dataTable",
 

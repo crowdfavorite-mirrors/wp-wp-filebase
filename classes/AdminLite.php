@@ -6,6 +6,8 @@ static function InitClass()
 	
 	wp_enqueue_style(WPFB.'-admin', WPFB_PLUGIN_URI.'wp-filebase-admin.css', array(), WPFB_VERSION, 'all' );
 	
+	wp_register_script('jquery-deserialize', WPFB_PLUGIN_URI.'extras/jquery/jquery.deserialize.js', array('jquery'), WPFB_VERSION);
+	
 	if (isset($_GET['page']))
 	{
 		$page = $_GET['page'];
@@ -18,6 +20,7 @@ static function InitClass()
 		}
 	}
 	
+	add_action('wp_dashboard_setup', array(__CLASS__, 'AdminDashboardSetup'));	
 	
 	//wp_register_widget_control(WPFB_PLUGIN_NAME, "[DEPRECATED]".WPFB_PLUGIN_NAME .' '. __('File list'), array(__CLASS__, 'WidgetFileListControl'), array('description' => __('DEPRECATED', WPFB)));
 	
@@ -127,6 +130,11 @@ static function PrintCKEditorPlugin() {
 //]]>
 </script>
 	<?php
+}
+
+static function AdminDashboardSetup() {	
+	if(wpfb_call('Admin','CurUserCanUpload'))
+		wp_add_dashboard_widget('wpfb-add-file-widget', WPFB_PLUGIN_NAME.': '.__('Add File', WPFB), array('WPFB_Admin', 'AddFileWidget'));
 }
 
 }

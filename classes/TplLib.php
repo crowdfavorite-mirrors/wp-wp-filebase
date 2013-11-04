@@ -33,8 +33,8 @@ static function Parse($tpl)
 	"'\\'.(('.". __CLASS__ ."::ParseTplExp('$1').')?(\\''.". __CLASS__ ."::ParseTplIfBlock('$2').'\\')).\\''", $tpl);
 	
 	// parse translation texts
-	$tpl = preg_replace('/([^\w])%\\\\\'(.+?)\\\\\'%([^\w])/', '$1\'.__(\'$2\', WPFB).\'$3', $tpl);
-	
+	$tpl = preg_replace('/([^\w])%\\\\\'(.+?)\\\\\'%([^\w])/', '$1\'.__(__(\'$2\', WPFB)).\'$3', $tpl);
+
 	// parse special vars
 	$tpl = str_replace('%post_id%', '\'.get_the_ID().\'', $tpl);
 	$tpl = str_replace('%wpfb_url%', '\'.(WPFB_PLUGIN_URI).\'', $tpl);
@@ -42,9 +42,8 @@ static function Parse($tpl)
 	// parse variables
 	$tpl = preg_replace('/%([a-z0-9_\/:]+?)%/i', '\'.$f->get_tpl_var(\'$1\').\'', $tpl);
 	
-	// this removes JS enc. in HTML comments
-	// remove html comments
-	//$tpl = preg_replace('/<\!\-\-[\s\S]+?\-\->/', '', $tpl);
+	// remove html comments (no multiline comments!)
+	$tpl = preg_replace('/\s<\!\-\-[^\n]+?\-\->\s/', ' ', $tpl);
 	
 	
 	$tpl = "'$tpl'";

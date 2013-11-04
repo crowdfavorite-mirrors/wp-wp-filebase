@@ -1,5 +1,4 @@
 
-
 /**
  * DataTables extension options and plug-ins. This namespace acts as a collection "area"
  * for plug-ins that can be used to extend the default DataTables behaviour - indeed many

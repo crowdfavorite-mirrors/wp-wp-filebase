@@ -31,7 +31,7 @@ static function RefererCheck()
 
 static function AddTraffic($bytes)
 {
-	$traffic = WPFB_Core::GetTraffic();
+	$traffic = wpfb_call('Misc','GetTraffic');
 	$traffic['month'] = $traffic['month'] + $bytes;
 	$traffic['today'] = $traffic['today'] + $bytes;	
 	$traffic['time'] = time();
@@ -40,10 +40,10 @@ static function AddTraffic($bytes)
 
 static function CheckTraffic($file_size)
 {
-	$traffic = WPFB_Core::GetTraffic();
+	$traffic = wpfb_call('Misc','GetTraffic');
 	
-	$limit_month = (WPFB_Core::GetOpt('traffic_month') * 1048576);
-	$limit_day = (WPFB_Core::GetOpt('traffic_day') * 1073741824);
+	$limit_month = (WPFB_Core::GetOpt('traffic_month') * 1073741824); //GiB
+	$limit_day = (WPFB_Core::GetOpt('traffic_day') * 1048576); // MiB
 	
 	return ( ($limit_month == 0 || ($traffic['month'] + $file_size) < $limit_month) && ($limit_day == 0 || ($traffic['today'] + $file_size) < $limit_day) );
 }
@@ -132,6 +132,7 @@ static function GetFileType($name)
 		case 'mpga':
 		case 'mp2':
 		case 'mp3':		return 'audio/mpeg';
+		case 'mp4':		return 'video/mp4';
 		case 'aif':
 		case 'aiff':
 		case 'aifc':	return 'audio/x-aiff';
@@ -240,6 +241,8 @@ static function GetFileType($name)
 		case 'thmx':	return 'application/vnd.ms-officetheme';
 		
 		case 'notebook':	return 'application/notebook';
+			
+		case 'gadget': return 'application/x-windows-gadget';
 		
 		default:		return 'application/octet-stream';
 	}
@@ -384,8 +387,10 @@ static function SendFile($file_path, $args=array())
 	header("Content-Type: " . $file_type . ((strpos($file_type, 'text/') !== false) ? '; charset=' : '')); 	// charset fix
 	header("Last-Modified: " . gmdate("D, d M Y H:i:s", $no_cache ? time() : $time) . " GMT");
 	
-	if(!empty($md5_hash))
-		header("Content-MD5: ".base64_encode(pack('H32',$md5_hash)));
+	if(!empty($md5_hash) && $md5_hash{0} != '#') { // check if fake md5
+		$pmd5 = @pack('H32',$md5_hash);
+		if(!empty($pmd5)) header("Content-MD5: ".@base64_encode($pmd5));
+	}
 	
 	if(!$no_cache)
 	{
@@ -415,24 +420,27 @@ static function SendFile($file_path, $args=array())
 		wp_die(__('Could not read file!', WPFB));
 		
 	$begin = 0;
-	$end = $size;
+	$end = $size-1;
 
 	$http_range = isset($_SERVER['HTTP_RANGE']) ? $_SERVER['HTTP_RANGE'] : '';
 	if(!empty($http_range) && strpos($http_range, 'bytes=') !== false && strpos($http_range, ',') === false) // multi-range not supported (yet)!
 	{
-		$range = explode('-', trim(substr($http_range, 6)));
-		$begin = 0 + trim($range[0]);
-		if(!empty($range[1]))
-			$end = 0 + trim($range[1]);
+		$range = array_map('trim',explode('-', trim(substr($http_range, 6))));
+		if(is_numeric($range[0])) {
+			$begin = 0 + $range[0];
+			if(is_numeric($range[1])) $end = 0 + $range[1];
+		} else {
+			$begin = $size - $range[1]; // format "-x": last x bytes
+		}
 	} else
 		$http_range = '';
 	
-	if($begin > 0 || $end < $size)
+	if($begin > 0 || $end < ($size-1))
 		header('HTTP/1.0 206 Partial Content');
 	else
 		header('HTTP/1.0 200 OK');
 		
-	$length = ($end-$begin);
+	$length = ($end-$begin+1);
 	WPFB_Download::AddTraffic($length);
 	
 	
@@ -446,13 +454,15 @@ static function SendFile($file_path, $args=array())
 	}
 	header("Content-Length: " . $length);
 	if(!empty($http_range))
-		header("Content-Range: bytes " . $begin . "-" . ($end-1) . "/" . $size);
+		header("Content-Range: bytes $begin-$end/$size");
 	
 	// clean up things that are not needed for download
 	@session_write_close(); // disable blocking of multiple downloads at the same time
 	global $wpdb;
-	if(!empty($wpdb->dbh))
+	if(!empty($wpdb->dbh) && is_resource($wpdb->dbh))
 		@mysql_close($wpdb->dbh);
+	else
+		@mysql_close();
 	
 	@ob_flush();
    @flush();
@@ -482,9 +492,9 @@ static function SendFile($file_path, $args=array())
 
 		$cur = $begin;
 		
-		while(!@feof($fh) && $cur < $end && @connection_status() == 0)
+		while(!@feof($fh) && $cur <= $end && @connection_status() == 0)
 		{		
-			$nbytes = min($buffer_size, $end-$cur);
+			$nbytes = min($buffer_size, $end-$cur+1);
 			$ts = microtime(true);
 
 			print @fread($fh, $nbytes);

@@ -1,6 +1,5 @@
 
 
-
 /**
  * Template object for the way in which DataTables holds information about
  * search information for the global filter and individual column filters.

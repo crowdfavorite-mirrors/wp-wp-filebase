@@ -1,5 +1,4 @@
 
-
 $.extend( DataTable.ext.aTypes, [
 	/*
 	 * Function: -

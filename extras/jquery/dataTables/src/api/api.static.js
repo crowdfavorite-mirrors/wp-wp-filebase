@@ -1,5 +1,4 @@
 
-
 /**
  * Provide a common method for plug-ins to check the version of DataTables being used, in order
  * to ensure compatibility.

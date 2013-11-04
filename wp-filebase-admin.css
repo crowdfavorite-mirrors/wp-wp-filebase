@@ -90,6 +90,11 @@
 .wpfilebase-roles-checklist li {
 	margin: 0;
 	padding: 0;
+	white-space: nowrap;
+}
+
+.wpfilebase-roles-checklist input {
+	width: auto;
 }
 
 #wpfilebase-donate {
@@ -122,6 +127,7 @@
 .wpfilebase-admin-list-row-title a img {
 	height: 32px;
 }
+
 
 #wpfilebase-form-upload-row th, #wpfilebase-form-upload-row td {
 	margin: 0;
@@ -290,21 +296,21 @@
 
 #wpfb-liking-toggle {
 	float: right;
-	width: 12px;
+	width: 14px;
 	height: 23px;
 	cursor:pointer;
 	/*padding: 0 16px 0 6px;*/
 	background-repeat: no-repeat;
-	background-position: bottom center;
+	background-position: center left;
 	
-	background-image:url("../../../wp-admin/images/screen-options-toggle-vs.gif");
+	background-image:url("../../../wp-admin/images/sort-2x.gif");
 	
 		
 	/*background-position: left top;*/
 }
 
 #wpfb-liking-toggle.closed {
-	background-position: top center;
+	background-position: center right;
 }
 
 #wpfb-how-start .widget-liquid-right {
@@ -387,4 +393,152 @@ filter: progid:DXImageTransform.Microsoft.gradient( startColorstr='#fceabb', end
 	padding: 2px;
 	font-family: Georgia,"Times New Roman","Bitstream Charter",Times,serif;
 	font-size: 18px;
+}
+
+#wpfb-batch-uploader-presets {
+	float:right;
+	width: 400px;
+}
+
+#wpfb-batch-uploader-presets label {
+	
+}
+
+#wpfb-batch-uploader-presets .wpfilebase-roles-checklist {
+	height: 100px;
+}
+
+#wpfb-batch-uploader-presets table th, #wpfb-batch-uploader-presets table td {
+	padding: 1px;
+	margin: 0;
+}
+
+#batch-drag-drop-uploader {
+	padding-right: 450px;
+}
+
+#batch-drag-drop-area {
+	width: 100%;
+	height: 300px;
+	border: 3px dashed #ccc;
+	border-radius: 0px;
+	
+	background-color: #fff;
+	text-align: center;
+	text-transform: uppercase;
+	font-size: 20px;
+	color: #ccc;
+}
+
+#batch-drag-drop-area.drag-over {
+	border-color:#83b4d8;
+	background-color: #ffe;
+}
+
+
+
+#batch-uploader-interface {
+	background-color: #efefef;
+	padding: 15px;
+	padding-top: 2px;
+	border-radius: 5px;
+}
+
+.batch-uploader-file {
+	background-color: #efefef;
+	padding: 2px 15px 6px 8px;
+
+	border-radius: 5px;
+	margin-top: 20px;
+	/* height: 30px;*/
+	box-shadow: 0px 1px 2px #999;
+	line-height: 40px;
+}
+
+.batch-uploader-file span {
+	font-size: 20px;
+}
+
+.batch-uploader-file .error {
+	font-size: 12px;
+	color: #d33;
+}
+
+.batch-uploader-file img {
+	height: 34px;
+	vertical-align: middle;
+	margin-right: 10px;
+}
+
+.batch-uploader-file span {
+	vertical-align: bottom;
+}
+
+.batch-uploader-file .progress {
+	margin-top: 10px;
+	margin-right: 0px;
+}
+
+#batch-uploader-presets-more-toggle {
+	cursor: pointer;	
+	text-align: center;
+}
+
+#batch-uploader-presets-more-toggle td {
+	border-top: 2px solid #ccc;
+}
+
+#batch-uploader-presets-more-toggle td span {
+	background-color: #ccc;
+	padding: 3px;
+	border-radius: 0px 0px 3px 3px;
+	color: #666;
+	text-shadow: 0px 1px 0px #eee;
+	text-transform: uppercase;
+}
+
+
+
+.fixed .column-size, .fixed .column-cat, .fixed .column-perms, .fixed .column-owner, .fixed .column-date, .fixed .column-hits, .fixed .column-last_dl_time {
+	width: 8%;
+}
+
+.fixed .check-column {
+	width: 2.5em;
+}
+
+.fixed .column-size {
+	width: 68px;
+}
+
+.fixed .column-hits {
+	width: 85px;
+	text-align: right;
+	padding-right: 15px;
+}
+
+.fixed .column-date {
+	width: 68px;
+}
+
+.fixed .check-column span {
+	margin-left: 5px;
+	text-align: right;
+}
+
+.fixed .column-name img {
+	margin-right: 8px;
+	float: left;
+}
+
+.fixed .column-name .row-actions {
+	clear: both;
+}
+
+span.offline {
+	background-color: #d54e4e;
+	color: white;
+	padding: 2px;
+	border-radius: 3px;
+	font-size: 10px;
 }

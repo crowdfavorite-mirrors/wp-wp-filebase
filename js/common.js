@@ -1,9 +1,13 @@
 var wpfbFileInfos = [];
 
 function wpfilebase_filedetails(id) {
-	var dtls = document.getElementById('wpfilebase-filedetails' + id);
-	if(dtls) dtls.style.display = (dtls.style.display!='none') ? 'none' : 'block';	
-	return false;
+	id = 'wpfilebase-filedetails' + id;
+	if('undefined' != typeof jQuery && jQuery('#'+id).length > 0) { jQuery('#'+id).slideToggle(); }
+	else {
+		var dtls = document.getElementById('wpfilebase-filedetails' + id);
+		if(dtls) dtls.style.display = (dtls.style.display!='none') ? 'none' : 'block';
+	}
+	return false;	
 }
 
 function wpfb_getFileInfo(url)
@@ -27,7 +31,7 @@ function wpfb_getFileInfo(url)
 
 function wpfb_ondownload(url) {
 	if(typeof(url) == 'object') url = url.data;
-	if(typeof(wpfb_ondl) == 'function') {
+	if(typeof(wpfb_ondl) == 'function' && 'string' == typeof(url) && url.length < 1024) { // on img load fail, url is the response body (404 ERROR page)??
 		var fi = wpfb_getFileInfo(url);
 		if(fi != null) {
 			try { wpfb_ondl(fi.id,'/'+wpfbConf.db+'/'+fi.path,fi.path); }
@@ -74,8 +78,7 @@ function wpfb_setupLinks() {
 	for(i=0;i<els.length;i++){
 		h = els[i].getAttribute('href');
 		if(h && (h.search(reQs)>0 || h.search(reHs)>0 || h.search(rePl)==0)) {
-			if('undefined' != typeof els[i].wpfbProcessed)
-				continue;
+			if('undefined' != typeof els[i].wpfbProcessed) continue;
 			els[i].wpfbProcessed = true;
 			wpfb_processlink(i,els[i]);
 		}
@@ -84,13 +87,17 @@ function wpfb_setupLinks() {
 	els = document.getElementsByTagName('img');
 	for(i=0;i<els.length;i++){
 		h = els[i].getAttribute('src');
-		if(h && (h.search(reQs)>0 || h.search(rePl)==0)) wpfb_processimg(i,els[i]);
+		if(h && (h.search(reQs)>0 || h.search(rePl)==0)) {
+			if('undefined' != typeof els[i].wpfbProcessed) continue;
+			els[i].wpfbProcessed = true;
+			wpfb_processimg(i,els[i]);
+		}
 	}
 }
 
 if(typeof(jQuery) != 'undefined') {
 	jQuery(document).ready(function() {
 		wpfb_setupLinks();
-		setInterval(wpfb_setupLinks, 200);
+		setInterval(wpfb_setupLinks, 300);
 	});
 }

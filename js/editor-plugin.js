@@ -169,6 +169,7 @@ function insListTag() {
 	var num = parseInt(jQuery('#list-num').val());
 	if(num != 0) tag.num = num;
 	
+	
 	return insertTag(tag);
 }
 

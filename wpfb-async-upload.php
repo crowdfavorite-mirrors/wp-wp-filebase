@@ -16,7 +16,7 @@ register_shutdown_function('wpfb_on_shutdown');
 define('TMP_FILE_MAX_AGE', 3600*3);
 
 $frontend_upload = !empty($_REQUEST['frontend_upload']) && $_REQUEST['frontend_upload'] !== "false";
-$file_add_now = !$frontend_upload && !empty($_REQUEST['file_add_now']) && $_REQUEST['file_add_now'] !== "false";
+
 
 ob_start();
 define('WP_ADMIN', !$frontend_upload);
@@ -25,6 +25,10 @@ if ( defined('ABSPATH') )
 	require_once(ABSPATH . 'wp-load.php');
 else
 	require_once(dirname(__FILE__).'/../../../wp-load.php');
+
+// global vars like this have to be set after wp-load.php, because they sometimes get unset?!
+$frontend_upload = !empty($_REQUEST['frontend_upload']) && $_REQUEST['frontend_upload'] !== "false";
+$file_add_now = !$frontend_upload && !empty($_REQUEST['file_add_now']) && $_REQUEST['file_add_now'] !== "false";
 
 error_reporting(0);
 
@@ -98,12 +102,27 @@ $_FILES['async-upload']['tmp_name'] = trim(substr($tmp, strlen(WPFB_Core::Upload
 $json = json_encode($_FILES['async-upload']);
 
 if($file_add_now) {
-	$result = WPFB_Admin::InsertFile(array('file_flash_upload' => $json, 'file_category' => 0), false);
+	
+	$file_data = array('file_flash_upload' => $json, 'file_category' => 0);
+	if(!empty($_REQUEST['presets'])) {
+		$presets = array();
+		parse_str(stripslashes($_REQUEST['presets']), $presets);
+		if(isset($presets['file_user_roles'])) {
+			$presets['file_user_roles'] = array_values(array_filter($presets['file_user_roles']));
+			$presets['file_perm_explicit'] = !empty($presets['file_user_roles']); // set explicit if perm != everyone
+		}
+		$file_data = array_merge($file_data, $presets);
+	}
+	
+	$result = WPFB_Admin::InsertFile($file_data, false);
 	if(empty($result['error'])) {
 		$json = json_encode(array_merge((array)$result['file'], array(
 			 'file_thumbnail_url' => $result['file']->GetIconUrl(),
+			 'file_edit_url' => $result['file']->GetEditUrl(),
 			 'nonce' => wp_create_nonce(WPFB.'-updatefile'.$result['file_id'])
 		)));
+	} else {
+		wpfb_ajax_die($result['error']);
 	}
 }
 

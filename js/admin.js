@@ -1,4 +1,3 @@
-
 function WPFB_PostBrowser(inputId, titleId)
 {
 	var postId = document.getElementById(inputId).value;

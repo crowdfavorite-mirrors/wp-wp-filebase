@@ -1,4 +1,3 @@
-
 /**
  * Create a new TR element (and it's TD children) for a row
  *  @param {object} oSettings dataTables settings object

@@ -1,4 +1,3 @@
-
 var i=0, iLen, j, jLen, k, kLen;
 var sId = this.getAttribute( 'id' );
 var bInitHandedOff = false;

@@ -4,28 +4,30 @@ Plugin Name: WP-Filebase
 Plugin URI: http://fabi.me/wordpress-plugins/wp-filebase-file-download-manager/
 Description: Adds a powerful downloads manager supporting file categories, download counter, widgets, sorted file lists and more to your WordPress blog.
 Author: Fabian Schlieper
-Version: 0.2.9.35
+Version: 0.3.0.02
 Author URI: http://wpfilebase.com/
 */
 
 if(!defined('WPFB'))
 {
 	define('WPFB', 'wpfb');
-	define('WPFB_VERSION', '0.2.9.35');
+	define('WPFB_VERSION', '0.3.0.02');
 	define('WPFB_PLUGIN_ROOT', str_replace('\\','/',dirname(__FILE__)).'/');
 	if(!defined('ABSPATH')) {
 		define('ABSPATH', dirname(dirname(dirname(dirname(__FILE__)))));
 	} else {
 		//define('WPFB_PLUGIN_URI', plugins_url('/',__FILE__));
 		$wpfb_uri = str_replace(str_replace('\\','/',ABSPATH),get_option('siteurl').'/',WPFB_PLUGIN_ROOT);
-		if(is_ssl()) $wpfb_uri = str_replace('http://', 'https://', $wpfb_uri);
+		$wpfb_uri = is_ssl() ? str_replace('http://', 'https://', $wpfb_uri) : str_replace('https://', 'http://', $wpfb_uri);
 		define('WPFB_PLUGIN_URI', $wpfb_uri);
+		unset($wpfb_uri);
 	}
 	if(!defined('WPFB_PERM_FILE')) define('WPFB_PERM_FILE', 666);
 	if(!defined('WPFB_PERM_DIR')) define('WPFB_PERM_DIR', 777);
 	define('WPFB_OPT_NAME', 'wpfilebase');
 	define('WPFB_PLUGIN_NAME', 'WP-Filebase');
 	define('WPFB_TAG_VER', 2);
+	
 	
 	function wpfb_loadclass($cl)
 	{
@@ -59,7 +61,7 @@ if(!defined('WPFB'))
 					call_user_func(array($cln, 'InitClass'));
 			}
 		}
-		return $res;		
+		return $res;
 	}
 	
 	// calls static $fnc of class $cl with $params

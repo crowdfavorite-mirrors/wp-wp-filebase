@@ -1,15 +1,19 @@
 <?php
 
 define('DOING_AJAX', true);
+//FASTLOAD define('WP_INSTALLING', true); // make wp load faster
 error_reporting(0);
 
 @ob_start();
 require_once(dirname(__FILE__).'/../../../wp-load.php');
 @ob_end_clean();
 
+//FASTLOAD require_once(dirname(__FILE__).'/wp-filebase.php'); // load wp-filebase only, no other plugins
+//FASTLOAD wpfb_loadclass('Core');
+
 function wpfb_print_json($obj) {
-	if(!WP_DEBUG)
-		@header('Content-Type: application/json; charset=' . get_option('blog_charset'));
+	//if(!WP_DEBUG)
+	@header('Content-Type: application/json; charset=' . get_option('blog_charset'));
 	$json = json_encode($obj);
 	@header('Content-Length: '.strlen($json));
 	echo $json;
@@ -90,10 +94,12 @@ switch ( $action = $_REQUEST['action'] ) {
 		if((empty($_REQUEST['cats_only']) || $_REQUEST['cats_only'] == 'false') && !$catsel) {
 			$where = WPFB_File::GetSqlCatWhereStr($parent_id);
 			if(!empty($_REQUEST['exclude_attached']) && $_REQUEST['exclude_attached'] != 'false') $where .= " AND `file_post_id` = 0";
+			
 			$files = WPFB_File::GetFiles2(
-				$where, WPFB_Core::GetOpt('hide_inaccessible'),
+				$where,  WPFB_Core::GetOpt('hide_inaccessible'),
 				$browser ? WPFB_Core::GetFileListSortSql((WPFB_Core::GetOpt('file_browser_file_sort_dir')?'>':'<').WPFB_Core::GetOpt('file_browser_file_sort_by')) : 'file_name'
 			);
+			
 			foreach($files as $f)
 				$file_items[$i++] = array('id'=>sprintf($file_id_format, $f->file_id), 'text'=>$filesel?('<a href="javascript:'.sprintf($onselect,$f->file_id,str_replace('\'','\\\'',htmlspecialchars(stripslashes($f->file_display_name)))).'">'.esc_html($f->GetTitle(24)).'</a> <span style="font-size:75%;vertical-align:top;">'.esc_html($f->file_name).'</span>'):$f->GenTpl2('filebrowser', false), 'classes'=>$filesel?'file':null);
 		}
@@ -172,7 +178,7 @@ switch ( $action = $_REQUEST['action'] ) {
 			if(preg_match('/\?wpfb_dl=([0-9]+)$/', $url, $matches) || preg_match('/#wpfb-file-([0-9]+)$/', $url, $matches))
 				$file = WPFB_File::GetFile($matches[1]);
 			else {
-				$base = WPFB_Core::GetPermalinkBase();
+				$base = trailingslashit(get_option('home')).trailingslashit(WPFB_Core::$settings->download_base);
 				$path = substr($url, strlen($base));
 				$path_u = substr(urldecode($url), strlen($base));			
 				$file = WPFB_File::GetByPath($path);
@@ -254,6 +260,17 @@ switch ( $action = $_REQUEST['action'] ) {
 		WPFB_Core::UpdateOption('file_context_menu', !WPFB_Core::GetOpt('file_context_menu'));
 		die('1');
 		
+	case 'set-user-setting':
+		if(!current_user_can('manage_categories') || empty($_REQUEST['name'])) die('0');
+		update_user_option(get_current_user_id(), 'wpfb_set_'.$_REQUEST['name'], stripslashes($_REQUEST['value']));
+		echo '1';
+		exit;
+		
+	case 'get-user-setting':
+		if(!current_user_can('manage_categories') || empty($_REQUEST['name'])) die('-1');
+		wpfb_print_json(get_user_option('wpfb_set_'.$_REQUEST['name']));
+		exit;
+		
 	case 'attach-file':
 		wpfb_loadclass('File');
 		if(!current_user_can('upload_files') || empty($_REQUEST['post_id']) || empty($_REQUEST['file_id']) || !($file = WPFB_File::GetFile($_REQUEST['file_id'])))
@@ -279,5 +296,6 @@ switch ( $action = $_REQUEST['action'] ) {
 		}
 		wpfb_print_json($props);
 		exit;
+		
 		
 }

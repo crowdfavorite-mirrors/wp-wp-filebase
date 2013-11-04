@@ -1,5 +1,4 @@
 
-
 /**
  * DataTables settings object - this holds all the information needed for a
  * given table, including configuration, data and current application of the

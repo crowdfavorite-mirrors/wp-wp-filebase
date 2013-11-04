@@ -128,7 +128,7 @@ static function Display()
 			<h3><?php _e('Traffic', WPFB); ?></h3>
 			<table class="wpfb-stats-table">
 			<?php
-				$traffic_stats = WPFB_Core::GetTraffic();					
+				$traffic_stats = wpfb_call('Misc','GetTraffic');					
 				$limit_day = (WPFB_Core::GetOpt('traffic_day') * 1048576);
 				$limit_month = (WPFB_Core::GetOpt('traffic_month') * 1073741824);
 			?>
@@ -206,6 +206,8 @@ if(WPFB_Core::GetOpt('cron_sync')) {
 
 
 
+
+
 </table>
 	
 				
@@ -215,7 +217,11 @@ if(WPFB_Core::GetOpt('cron_sync')) {
 </div>
 
 <?php
-	if(WPFB_admin::CurUserCanUpload()) WPFB_Admin::PrintForm('file', null, array('exform' => $exform));
+	if(WPFB_admin::CurUserCanUpload()) {		
+		WPFB_Admin::PrintForm('file', null, array('exform' => $exform));	
+
+		
+	}
 ?>
 			
 		<?php
@@ -315,6 +321,14 @@ if(WPFB_Core::GetOpt('cron_sync')) {
 		break; // sync
 		
 		
+		
+			
+			
+		case 'batch-upload':
+			wpfb_loadclass('BatchUploader');
+			$batch_uploader = new WPFB_BatchUploader();
+			$batch_uploader->Display();
+			break;
 		
 	} // switch	
 	?>

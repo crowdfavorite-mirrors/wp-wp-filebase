@@ -45,7 +45,7 @@ static function AddOptions()
 	
  
 }
-static function AddTpls($old_ver) {	
+static function AddTpls($old_ver=null) {	
 	$def_tpls_file = array(
 		'filebrowser' => '%file_small_icon% <a href="%file_url%" title="Download %file_display_name%">%file_display_name%</a> (%file_size%)',
 		'download-button' => '<style type="text/css" media="screen">
@@ -276,7 +276,7 @@ static function SetupDBTables($old_ver=null)
   `file_license` varchar(255) NOT NULL default '',
   `file_user_roles` varchar(2000) NOT NULL default '',
   `file_offline` enum('0','1') NOT NULL default '0',
-  `file_direct_linking` enum('0','1','3') NOT NULL default '0',
+  `file_direct_linking` enum('0','1','2') NOT NULL default '0',
   `file_force_download` enum('0','1') NOT NULL default '0',
   `file_category` int(8) unsigned NOT NULL default '0',
   `file_category_name` varchar(127) NOT NULL default '',
@@ -381,7 +381,11 @@ static function SetupDBTables($old_ver=null)
 	if(!empty($old_ver) && version_compare($old_ver, '0.2.9.24') < 0)
 		$queries[] = "ALTER TABLE  `$tbl_files` CHANGE  `file_direct_linking`  `file_direct_linking` ENUM(  '0',  '1',  '2' ) NOT NULL DEFAULT '0'";
 
+	
 	// since 0.2.9.25
+	
+	// fix (0,1,3) => (0,1,2)
+	$queries[] = "@ALTER TABLE `$tbl_files` CHANGE  `file_direct_linking`  `file_direct_linking` ENUM(  '0',  '1',  '2' )  NOT NULL DEFAULT  '0'";
 	
 	$queries[] = "OPTIMIZE TABLE `$tbl_cats`";
 	$queries[] = "OPTIMIZE TABLE `$tbl_files`";
@@ -415,7 +419,7 @@ static function SetupDBTables($old_ver=null)
 	if(!!$wpdb->get_var("SHOW COLUMNS FROM `$tbl_files` LIKE 'file_required_level'")) {		
 		$files = $wpdb->get_results("SELECT file_id,file_required_level FROM $tbl_files WHERE file_required_level <> 0");
 		foreach ( (array) $files as $file ) {
-			$wpdb->query("UPDATE `$tbl_files` SET `file_user_roles` = '|".WPFB_Core::UserLevel2Role($file->file_required_level - 1)."' WHERE `file_id` = $file->file_id");
+			$wpdb->query("UPDATE `$tbl_files` SET `file_user_roles` = '|".WPFB_Setup::UserLevel2Role($file->file_required_level - 1)."' WHERE `file_id` = $file->file_id");
 		}
 		$wpdb->query("ALTER TABLE `$tbl_files` DROP `file_required_level`");
 	}
@@ -423,7 +427,7 @@ static function SetupDBTables($old_ver=null)
 	if(!!$wpdb->get_var("SHOW COLUMNS FROM `$tbl_cats` LIKE 'cat_required_level'")) {		
 		$cats = $wpdb->get_results("SELECT cat_id,cat_required_level FROM $tbl_cats WHERE cat_required_level <> 0");
 		foreach ( (array) $cats as $cat ) {
-			$wpdb->query("UPDATE `$tbl_cats` SET `cat_user_roles` = '|".WPFB_Core::UserLevel2Role($cat->cat_required_level - 1)."' WHERE `cat_id` = $cat->cat_id");
+			$wpdb->query("UPDATE `$tbl_cats` SET `cat_user_roles` = '|".WPFB_Setup::UserLevel2Role($cat->cat_required_level - 1)."' WHERE `cat_id` = $cat->cat_id");
 		}
 		$wpdb->query("ALTER TABLE `$tbl_cats` DROP `cat_required_level`");
 	}
@@ -435,6 +439,16 @@ static function SetupDBTables($old_ver=null)
 		$wpdb->query("UPDATE `$tbl_cats` SET `cat_user_roles` = CONCAT('|', `cat_user_roles`) WHERE LEFT(`cat_user_roles`, 1) <> '|'");
 	}
 	*/
+}
+
+static function UserLevel2Role($level)
+{
+	if($level >= 8) return 'administrator';
+	if($level >= 5)	return 'editor';
+	if($level >= 2)	return 'author';
+	if($level >= 1)	return 'contributor';
+	if($level >= 0)	return 'subscriber';
+	return null;
 }
 
 static function DropDBTables()
@@ -544,7 +558,8 @@ static function OnActivateOrVerChange($old_ver=null) {
 	$old_options = get_option(WPFB_OPT_NAME);
 	self::AddOptions();
 	self::AddTpls($old_ver);
-	WPFB_Admin::SettingsUpdated($old_options, get_option(WPFB_OPT_NAME));
+	$new_options = get_option(WPFB_OPT_NAME);
+	WPFB_Admin::SettingsUpdated($old_options, $new_options);
 	self::ProtectUploadPath();
 	
 	WPFB_Admin::WPCacheRejectUri(WPFB_Core::GetOpt('download_base') . '/', $old_options['download_base'] . '/');

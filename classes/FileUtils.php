@@ -2,9 +2,9 @@
 
 static function GetFileSize($file)
 {
-	$size = filesize($file);
+	$fsize = filesize($file);
 	
-	return $size;
+	return $fsize;
 }
 
 static function CreateThumbnail($src_img, $max_size)
@@ -44,7 +44,7 @@ static function CreateThumbnail($src_img, $max_size)
 	$tmp_size = array();
 	if(!@file_exists($tmp_img) || @filesize($tmp_img) == 0 || !WPFB_FileUtils::IsValidImage($tmp_img, $tmp_size))
 	{
-		if($tmp_del) @unlink($tmp_img);
+		if($tmp_del && is_file($tmp_img)) @unlink($tmp_img);
 		return false;
 	}
 		
@@ -52,7 +52,7 @@ static function CreateThumbnail($src_img, $max_size)
 		require_once(ABSPATH . 'wp-includes/media.php');
 		if(!function_exists('image_make_intermediate_size'))
 		{
-			if($tmp_del) @unlink($tmp_img);
+			if($tmp_del && is_file($tmp_img)) @unlink($tmp_img);
 			wp_die('Function image_make_intermediate_size does not exist!');
 			return false;
 		}
@@ -70,7 +70,7 @@ static function CreateThumbnail($src_img, $max_size)
 			$thumb = array('file' => $new_thumb);
 	}
 	
-	if($tmp_del) @unlink($tmp_img);
+	if($tmp_del && is_file($tmp_img)) unlink($tmp_img);
 	
 	if(!$thumb ) return false;
 	
@@ -90,5 +90,39 @@ static function IsValidImage($img, &$img_size = null) {
 static function FileHasImageExt($name) {	
 	$name = strtolower(substr($name, strrpos($name, '.') + 1));
 	return ($name == 'png' || $name == 'gif' || $name == 'jpg' || $name == 'jpeg' || $name == 'bmp' || $name == 'tif' || $name == 'tiff');
-}	
+}
+
+
+// copy of wp's copy_dir, but moves everything
+static function MoveDir($from, $to)
+{
+	require_once(ABSPATH . 'wp-admin/includes/class-wp-filesystem-base.php');
+	require_once(ABSPATH . 'wp-admin/includes/class-wp-filesystem-direct.php');
+	
+	$wp_filesystem = new WP_Filesystem_Direct(null);
+	
+	$dirlist = $wp_filesystem->dirlist($from);
+
+	$from = trailingslashit($from);
+	$to = trailingslashit($to);
+
+	foreach ( (array) $dirlist as $filename => $fileinfo ) {
+		if ( 'f' == $fileinfo['type'] ) {
+			if ( ! $wp_filesystem->move($from . $filename, $to . $filename, true) )
+				return false;
+			$wp_filesystem->chmod($to . $filename, octdec(WPFB_PERM_FILE));
+		} elseif ( 'd' == $fileinfo['type'] ) {
+			if ( !$wp_filesystem->mkdir($to . $filename, octdec(WPFB_PERM_DIR)) )
+				return false;
+			if(!self::MoveDir($from . $filename, $to . $filename))
+				return false;
+		}
+	}
+	
+	// finally delete the from dir
+	@rmdir($from);
+	
+	return true;
+}
+
 }
